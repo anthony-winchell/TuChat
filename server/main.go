@@ -44,7 +44,9 @@ func handleConnection(conn net.Conn) {
 			log.Println(err)
 			return
 		}
-		username := string(buffer[:n])
+		username := string(buffer[:n-1])
+		
+		log.Println("Username:", username)
 
 		for {
 			n, err := conn.Read(buffer)
