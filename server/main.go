@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net"
+	"sync"
 )
 
 type Client struct {
@@ -11,6 +12,7 @@ type Client struct {
 }
 
 type Server struct {
+	mu       sync.Mutex
 	listener net.Listener
 	clients  []*Client
 }
@@ -28,6 +30,9 @@ func (s *Server) Start() {
 }
 
 func (s *Server) removeClient(client *Client) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
 	for i, c := range s.clients {
 		if c == client {
 			s.clients = append(s.clients[:i], s.clients[i+1:]...)
@@ -72,7 +77,10 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 		username: username,
 	}
 
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	s.clients = append(s.clients, client)
+	log.Println("Clients connected: ", len(s.clients))
 
 	return client, nil
 }
@@ -85,9 +93,30 @@ func (s *Server) handleMessages(client *Client) {
 			log.Println(err)
 			return
 		}
-
 		message := string(buffer[:n])
-		log.Printf("%s: %s", client.username, message)
+		s.broadcastMessage(message, client)
+	}
+}
+
+func (s *Server) broadcastMessage(message string, sender *Client) {
+
+	log.Println("broadcasting: ", message)
+	log.Println("Clients: ", len(s.clients))
+
+	formattedMessage := sender.username + ": " + message
+	s.mu.Lock()
+
+	clients := make([]*Client, len(s.clients))
+	copy(clients, s.clients)
+
+	s.mu.Unlock()
+	for _, client := range clients {
+		if client == sender {
+			continue
+		}
+		if _, err := client.conn.Write([]byte(formattedMessage)); err != nil {
+			log.Println(err)
+		}
 	}
 }
 

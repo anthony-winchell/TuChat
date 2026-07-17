@@ -1,51 +1,59 @@
 package main
 
 import (
-  "net"
 	"bufio"
-	"os"
 	"log"
+	"net"
+	"os"
 )
 
 func main() {
 	//connect to the server
-	conn, err := net.Dial("tcp", "localhost:8080")
+	conn, err := connectToServer()
 	if err != nil {
 		log.Println(err)
-		return 
+		return
 	}
-	defer conn.Close()
 
-	//get connection message and username prompt
-	buffer := make([]byte, 1024)
-	n, err := conn.Read(buffer)
-	if err != nil {
-		log.Println(err)
-		return 
-	}
-	log.Println(string(buffer[:n]))
-
-	//get username from the user 
 	terminalReader := bufio.NewReader(os.Stdin)
-	username, err := terminalReader.ReadString('\n')
-	if err != nil {
+
+	if err := setUsername(conn, terminalReader); err != nil {
 		log.Println(err)
 		return 
 	}
+	
+	go receiveMessages(conn)
 
-	//send username to the server
-	_, err = conn.Write([]byte(username))
-	if err != nil {
-		log.Println(err)
-		return 
+	sendMessages(conn, terminalReader)
+
+}
+
+func connectToServer() (conn net.Conn, err error) {
+	conn, err = net.Dial("tcp", "localhost:8080")
+	return 
+}
+
+//handles recieving messages from the server. use as goroutine so that it can run in the background
+func receiveMessages(conn net.Conn) {
+	buffer := make([]byte, 1024)
+
+	for {
+		n, err := conn.Read(buffer)
+		if err != nil {
+			log.Println(err)
+			return
+		}
+		log.Println(string(buffer[:n]))
 	}
+}
 
-	//read messages from terminal and send to server 
+//handles sending messages to the server 
+func sendMessages(conn net.Conn, terminalReader *bufio.Reader) {
 	for {
 		message, err := terminalReader.ReadString('\n')
 		if err != nil {
 			log.Println(err)
-			return 
+			return
 		}
 
 		_, err = conn.Write([]byte(message))
@@ -53,9 +61,30 @@ func main() {
 			log.Println(err)
 			return
 		}
-		
+	}
+}
+
+//after connecting to the server, the client will be prompted to enter a username
+func setUsername(conn net.Conn, terminalReader *bufio.Reader) error {
+	//get username prompt
+	buffer := make([]byte, 1024)
+	n, err := conn.Read(buffer)
+	if err != nil {
+		return err
+	}
+	log.Println(string(buffer[:n]))
+
+	//get username from terminal input
+	username, err := terminalReader.ReadString('\n')
+	if err != nil {
+		return err
 	}
 
+	//send username to the server
+	_, err = conn.Write([]byte(username))
+	if err != nil {
+		return err
+	}
 
-	
+	return nil
 }
