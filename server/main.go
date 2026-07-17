@@ -4,11 +4,14 @@ import (
 	"log"
 	"net"
 	"sync"
+	"bufio"
+	"strings"
 )
 
 type Client struct {
 	conn     net.Conn
 	username string
+	reader   *bufio.Reader
 }
 
 type Server struct {
@@ -19,6 +22,7 @@ type Server struct {
 
 func (s *Server) Start() {
 	defer s.listener.Close()
+	log.Println("Server started")
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
@@ -60,40 +64,44 @@ func (s *Server) handleConnection(conn net.Conn) {
 }
 
 func (s *Server) registerClient(conn net.Conn) (*Client, error) {
-	if _, err := conn.Write([]byte("Connection Successful\n Enter Username:")); err != nil {
+	if _, err := conn.Write([]byte("Choose A Username:\n")); err != nil {
 		return nil, err
 	}
 
-	buffer := make([]byte, 1024)
-	n, err := conn.Read(buffer)
+	reader := bufio.NewReader(conn)
+
+	username, err := reader.ReadString('\n')
 	if err != nil {
 		return nil, err
-	}
+	 }
 
-	username := string(buffer[:n-1])
+	username = strings.TrimSpace(username)
 
 	client:= &Client{
 		conn:     conn,
 		username: username,
+		reader:   reader,
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.clients = append(s.clients, client)
-	log.Println("Clients connected: ", len(s.clients))
+
+	_, err = conn.Write([]byte("Thank you " + username + ". You may begin chatting.\n"))
+	if err != nil {
+		return nil, err
+	}
 
 	return client, nil
 }
 
 func (s *Server) handleMessages(client *Client) {
-	buffer := make([]byte, 1024)
 	for {
-		n, err := client.conn.Read(buffer)
+		message, err := client.reader.ReadString('\n')
 		if err != nil {
 			log.Println(err)
 			return
 		}
-		message := string(buffer[:n])
 		s.broadcastMessage(message, client)
 	}
 }
@@ -130,7 +138,6 @@ func main() {
 	server := &Server{
 		listener: listener,
 	}
-
+	log.Println("Starting Server...")
 	server.Start()
-
 }

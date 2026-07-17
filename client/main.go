@@ -15,14 +15,15 @@ func main() {
 		return
 	}
 
+	reader := bufio.NewReader(conn)
 	terminalReader := bufio.NewReader(os.Stdin)
 
-	if err := setUsername(conn, terminalReader); err != nil {
+	if err := setUsername(conn, reader, terminalReader); err != nil {
 		log.Println(err)
 		return 
 	}
 	
-	go receiveMessages(conn)
+	go receiveMessages(reader)
 
 	sendMessages(conn, terminalReader)
 
@@ -34,16 +35,14 @@ func connectToServer() (conn net.Conn, err error) {
 }
 
 //handles recieving messages from the server. use as goroutine so that it can run in the background
-func receiveMessages(conn net.Conn) {
-	buffer := make([]byte, 1024)
-
+func receiveMessages(reader *bufio.Reader) {
 	for {
-		n, err := conn.Read(buffer)
+		message, err := reader.ReadString('\n')
 		if err != nil {
 			log.Println(err)
 			return
 		}
-		log.Println(string(buffer[:n]))
+		log.Println(message)
 	}
 }
 
@@ -65,14 +64,13 @@ func sendMessages(conn net.Conn, terminalReader *bufio.Reader) {
 }
 
 //after connecting to the server, the client will be prompted to enter a username
-func setUsername(conn net.Conn, terminalReader *bufio.Reader) error {
+func setUsername(conn net.Conn, reader *bufio.Reader, terminalReader *bufio.Reader) error {
 	//get username prompt
-	buffer := make([]byte, 1024)
-	n, err := conn.Read(buffer)
+	prompt, err := reader.ReadString('\n')
 	if err != nil {
 		return err
 	}
-	log.Println(string(buffer[:n]))
+	log.Println(prompt)
 
 	//get username from terminal input
 	username, err := terminalReader.ReadString('\n')
@@ -81,10 +79,17 @@ func setUsername(conn net.Conn, terminalReader *bufio.Reader) error {
 	}
 
 	//send username to the server
-	_, err = conn.Write([]byte(username))
+  _, err = conn.Write([]byte(username))
 	if err != nil {
 		return err
 	}
+
+	//print success message
+	successMessage, err := reader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+	log.Println(successMessage)
 
 	return nil
 }
