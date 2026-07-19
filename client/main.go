@@ -2,9 +2,11 @@ package main
 
 import (
 	"bufio"
+	"fmt"
 	"log"
 	"net"
 	"os"
+	"strings"
 )
 
 func main() {
@@ -20,9 +22,9 @@ func main() {
 
 	if err := setUsername(conn, reader, terminalReader); err != nil {
 		log.Println(err)
-		return 
+		return
 	}
-	
+
 	go receiveMessages(reader)
 
 	sendMessages(conn, terminalReader)
@@ -31,10 +33,10 @@ func main() {
 
 func connectToServer() (conn net.Conn, err error) {
 	conn, err = net.Dial("tcp", "localhost:8080")
-	return 
+	return
 }
 
-//handles recieving messages from the server. use as goroutine so that it can run in the background
+// handles recieving messages from the server. use as goroutine so that it can run in the background
 func receiveMessages(reader *bufio.Reader) {
 	for {
 		message, err := reader.ReadString('\n')
@@ -42,11 +44,11 @@ func receiveMessages(reader *bufio.Reader) {
 			log.Println(err)
 			return
 		}
-		log.Println(message)
+		fmt.Println(strings.TrimSpace(message))
 	}
 }
 
-//handles sending messages to the server 
+// handles sending messages to the server
 func sendMessages(conn net.Conn, terminalReader *bufio.Reader) {
 	for {
 		message, err := terminalReader.ReadString('\n')
@@ -63,33 +65,32 @@ func sendMessages(conn net.Conn, terminalReader *bufio.Reader) {
 	}
 }
 
-//after connecting to the server, the client will be prompted to enter a username
+// after connecting to the server, the client will be prompted to enter a username
 func setUsername(conn net.Conn, reader *bufio.Reader, terminalReader *bufio.Reader) error {
-	//get username prompt
-	prompt, err := reader.ReadString('\n')
-	if err != nil {
-		return err
-	}
-	log.Println(prompt)
 
-	//get username from terminal input
-	username, err := terminalReader.ReadString('\n')
-	if err != nil {
-		return err
-	}
+	for {
+		prompt, err := reader.ReadString('\n')
+		if err != nil {
+			return err
+		}
 
-	//send username to the server
-  _, err = conn.Write([]byte(username))
-	if err != nil {
-		return err
-	}
+		prompt = strings.TrimSpace(prompt)
+		fmt.Println(prompt)
 
-	//print success message
-	successMessage, err := reader.ReadString('\n')
-	if err != nil {
-		return err
-	}
-	log.Println(successMessage)
+		if strings.HasPrefix(prompt, "Thank you") {
+			return nil
+		}
 
-	return nil
+		if strings.HasSuffix(prompt, ":") {
+			username, err := terminalReader.ReadString('\n')
+			if err != nil {
+				return err
+			}
+
+			_, err = conn.Write([]byte(username))
+			if err != nil {
+				return err
+			}
+		}
+	}
 }

@@ -1,12 +1,15 @@
 package main
 
 import (
+	"bufio"
+	"errors"
 	"log"
 	"net"
-	"sync"
-	"bufio"
 	"strings"
+	"sync"
 )
+
+var ErrUsernameTaken = errors.New("username already taken")
 
 type Client struct {
 	conn     net.Conn
@@ -59,38 +62,57 @@ func (s *Server) handleConnection(conn net.Conn) {
 	s.handleMessages(client)
 
 	log.Printf("%s Disconnected", client.username)
-	
+
 	s.removeClient(client)
+
+	s.leaveAlert(client)
 }
 
 func (s *Server) registerClient(conn net.Conn) (*Client, error) {
-	if _, err := conn.Write([]byte("Choose A Username:\n")); err != nil {
-		return nil, err
-	}
 
 	reader := bufio.NewReader(conn)
-
-	username, err := reader.ReadString('\n')
-	if err != nil {
-		return nil, err
-	 }
-
-	username = strings.TrimSpace(username)
-
-	client:= &Client{
-		conn:     conn,
-		username: username,
-		reader:   reader,
-	}
-
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.clients = append(s.clients, client)
-
-	_, err = conn.Write([]byte("Thank you " + username + ". You may begin chatting.\n"))
-	if err != nil {
+	var client *Client
+	if _, err := conn.Write([]byte("Choose a Username:\n")); err != nil {
 		return nil, err
 	}
+	for {
+		username, err := reader.ReadString('\n')
+		if err != nil {
+			return nil, err
+		}
+
+		username = strings.TrimSpace(username)
+
+		if username == "" {
+			if _, err := conn.Write([]byte("Username cannot be empty. Please choose another:\n")); err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		client = &Client{
+			conn:     conn,
+			username: username,
+			reader:   reader,
+		}
+
+		err = s.addClient(client)
+		if errors.Is(err, ErrUsernameTaken) {
+			if _, err := conn.Write([]byte("Username already taken. Please choose another:\n")); err != nil {
+				return nil, err
+			}
+			continue
+		}
+
+		break
+	}
+
+	_, err := conn.Write([]byte("Thank you " + client.username + ". You may begin chatting.\n"))
+	if err != nil {
+		return nil, err
+	}
+
+	s.joinAlert(client)
 
 	return client, nil
 }
@@ -106,23 +128,51 @@ func (s *Server) handleMessages(client *Client) {
 	}
 }
 
-func (s *Server) broadcastMessage(message string, sender *Client) {
-
-	log.Println("broadcasting: ", message)
-	log.Println("Clients: ", len(s.clients))
-
-	formattedMessage := sender.username + ": " + message
+func (s *Server) addClient(client *Client) error {
 	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	for _, c := range s.clients {
+		if c.username == client.username {
+			return ErrUsernameTaken
+		}
+	}
+
+	s.clients = append(s.clients, client)
+
+	return nil
+}
+
+func (s *Server) broadcastMessage(message string, sender *Client) {
+	formattedMessage := sender.username + ": " + strings.TrimSpace(message) + "\n"
+
+	s.sendToAll(formattedMessage, sender)
+}
+
+func (s *Server) joinAlert(joiner *Client) {
+	s.sendToAll(joiner.username+" has joined the chat.\n", joiner)
+}
+
+func (s *Server) leaveAlert(leaver *Client) {
+	s.sendToAll(leaver.username+" has left the chat.\n", leaver)
+}
+
+func (s *Server) clientsSnapshot() []*Client {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
 	clients := make([]*Client, len(s.clients))
 	copy(clients, s.clients)
 
-	s.mu.Unlock()
-	for _, client := range clients {
-		if client == sender {
+	return clients
+}
+
+func (s *Server) sendToAll(message string, except *Client) {
+	for _, client := range s.clientsSnapshot() {
+		if client == except {
 			continue
 		}
-		if _, err := client.conn.Write([]byte(formattedMessage)); err != nil {
+		if _, err := client.conn.Write([]byte(message)); err != nil {
 			log.Println(err)
 		}
 	}
