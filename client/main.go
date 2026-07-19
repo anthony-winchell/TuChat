@@ -17,6 +17,8 @@ func main() {
 		return
 	}
 
+	defer conn.Close()
+
 	reader := bufio.NewReader(conn)
 	terminalReader := bufio.NewReader(os.Stdin)
 
@@ -25,10 +27,17 @@ func main() {
 		return
 	}
 
-	go receiveMessages(reader)
+	done := make(chan struct{})
+	go func() {
+		receiveMessages(reader)
+		close(done)
+	}()
 
-	sendMessages(conn, terminalReader)
+	go sendMessages(conn, terminalReader)
 
+	<-done
+
+	fmt.Println("Disconnected from server.")
 }
 
 func connectToServer() (conn net.Conn, err error) {

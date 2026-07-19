@@ -7,9 +7,11 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"time"
 )
 
-var ErrUsernameTaken = errors.New("username already taken")
+var ErrUsernameTaken = errors.New("Username already taken")
+var ErrUsernameFormat = errors.New(`Username cannot contain ':', '\n' or spaces. Must be between 3 and 13 characters long`)
 
 type Client struct {
 	conn     net.Conn
@@ -29,8 +31,11 @@ func (s *Server) Start() {
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
+			if errors.Is(err, net.ErrClosed) {
+				return
+			}
 			log.Println(err)
-			return
+			continue
 		}
 		go s.handleConnection(conn)
 	}
@@ -93,10 +98,18 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 		client = &Client{
 			conn:     conn,
 			username: username,
-			reader:   reader,
+			reader:  reader,
 		}
 
 		err = s.addClient(client)
+
+		if errors.Is(err, ErrUsernameFormat) {
+			if _, err := conn.Write([]byte(ErrUsernameFormat.Error() + " Please choose another:\n")); err != nil {
+				return nil, err
+			}
+			continue
+		}
+
 		if errors.Is(err, ErrUsernameTaken) {
 			if _, err := conn.Write([]byte("Username already taken. Please choose another:\n")); err != nil {
 				return nil, err
@@ -119,6 +132,8 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 
 func (s *Server) handleMessages(client *Client) {
 	for {
+		client.conn.SetReadDeadline(time.Now().Add(60 * time.Minute))
+
 		message, err := client.reader.ReadString('\n')
 		if err != nil {
 			log.Println(err)
@@ -129,6 +144,14 @@ func (s *Server) handleMessages(client *Client) {
 }
 
 func (s *Server) addClient(client *Client) error {
+	if strings.ContainsAny(client.username, `: \n`) {
+		return ErrUsernameFormat
+	}
+
+	if len(client.username) < 3 || len(client.username) > 13 {
+		return ErrUsernameFormat
+	}
+	
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
