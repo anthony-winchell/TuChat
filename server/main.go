@@ -11,7 +11,7 @@ import (
 )
 
 var ErrUsernameTaken = errors.New("Username already taken")
-var ErrUsernameFormat = errors.New(`Username cannot contain ':', '\n' or spaces. Must be between 3 and 13 characters long`)
+var ErrUsernameFormat = errors.New(`Username cannot contain ':'. Must be between 3 and 13 characters long`)
 
 type Client struct {
 	conn     net.Conn
@@ -20,7 +20,7 @@ type Client struct {
 }
 
 type Server struct {
-	mu       sync.Mutex
+	mu       sync.RWMutex
 	listener net.Listener
 	clients  []*Client
 }
@@ -139,12 +139,24 @@ func (s *Server) handleMessages(client *Client) {
 			log.Println(err)
 			return
 		}
+
+		message = strings.TrimSpace(message)
+
+		if message == "" {
+			continue
+		}
+		if strings.HasPrefix(message, "/") {
+			if s.executeCommand(client, message) {
+				return
+			}
+			continue
+		}
 		s.broadcastMessage(message, client)
 	}
 }
 
 func (s *Server) addClient(client *Client) error {
-	if strings.ContainsAny(client.username, `: \n`) {
+	if strings.ContainsRune(client.username, ':') {
 		return ErrUsernameFormat
 	}
 
@@ -181,8 +193,8 @@ func (s *Server) leaveAlert(leaver *Client) {
 }
 
 func (s *Server) clientsSnapshot() []*Client {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
 	clients := make([]*Client, len(s.clients))
 	copy(clients, s.clients)
@@ -195,9 +207,93 @@ func (s *Server) sendToAll(message string, except *Client) {
 		if client == except {
 			continue
 		}
-		if _, err := client.conn.Write([]byte(message)); err != nil {
-			log.Println(err)
+		client.Send(message)
+	}
+}
+
+func (s *Server) executeCommand(client *Client, input string) bool {
+	parts := strings.Fields(input)
+
+	switch parts[0] {
+	case "/quit":
+		return s.commandQuit(client)
+	case "/users":
+		return s.commandUsers(client)
+	case "/help":
+		return s.commandHelp(client)
+	case "/pm":
+		return s.commandPM(client, parts)
+	default:
+		client.Send("Invalid Command. Try /help.")
+		return false
+	}
+}
+
+func (s *Server) commandPM(client *Client, parts []string) bool {
+	if len(parts) < 3{
+			client.Send("Usage: /pm <username> <message>")
+			return false
 		}
+
+		receiver := s.findClient(parts[1])
+
+		if receiver == nil {
+			client.Send("User not found.")
+			return false
+		}
+
+		if receiver == client {
+			client.Send("You cannot /pm yourself.")
+			return false
+		}
+
+		message := strings.Join(parts[2:], " ")
+
+		receiver.Send("(Private) " + client.username + ": " + message)
+
+		client.Send("(To " + receiver.username + ") " + message)
+		return false
+}
+
+func (s *Server) commandHelp(client *Client) bool {
+	client.Send("Available Commands:")
+		client.Send("/users")
+		client.Send("/help")
+		client.Send("/quit")
+		client.Send("/pm <username> <message>")
+
+		return false
+}
+
+func (s *Server) commandQuit(client *Client) bool {
+	client.Send("Goodbye.")
+	return true
+}
+
+func (s *Server) commandUsers(client *Client) bool {
+	users := s.clientsSnapshot()
+
+	client.Send("Active users:")
+
+	for _, user := range users {
+		client.Send(user.username)
+	}
+
+	return false
+}
+
+func (s *Server) findClient(username string) *Client {
+	for _, client := range s.clientsSnapshot() {
+		if client.username == username {
+			return client
+		}
+	}
+	return nil
+}
+
+func (c *Client) Send(message string) {
+	if _, err := c.conn.Write([]byte(message + "\n")); err != nil {
+		log.Println(err)
 	}
 }
 
