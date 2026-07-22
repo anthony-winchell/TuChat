@@ -22,7 +22,7 @@ type Client struct {
 type Server struct {
 	mu       sync.RWMutex
 	listener net.Listener
-	clients  []*Client
+	clients  map[string]*Client
 }
 
 func (s *Server) Start() {
@@ -45,12 +45,7 @@ func (s *Server) removeClient(client *Client) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for i, c := range s.clients {
-		if c == client {
-			s.clients = append(s.clients[:i], s.clients[i+1:]...)
-			return
-		}
-	}
+	delete(s.clients, client.username)
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
@@ -167,13 +162,11 @@ func (s *Server) addClient(client *Client) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	for _, c := range s.clients {
-		if c.username == client.username {
-			return ErrUsernameTaken
-		}
+	if _, exists := s.clients[client.username]; exists {
+		return ErrUsernameTaken
 	}
 
-	s.clients = append(s.clients, client)
+	s.clients[client.username] = client
 
 	return nil
 }
@@ -196,8 +189,11 @@ func (s *Server) clientsSnapshot() []*Client {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	clients := make([]*Client, len(s.clients))
-	copy(clients, s.clients)
+	clients := make([]*Client, 0, len(s.clients))
+
+	for _, client := range s.clients {
+		clients = append(clients, client)
+	}
 
 	return clients
 }
@@ -283,12 +279,10 @@ func (s *Server) commandUsers(client *Client) bool {
 }
 
 func (s *Server) findClient(username string) *Client {
-	for _, client := range s.clientsSnapshot() {
-		if client.username == username {
-			return client
-		}
-	}
-	return nil
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.clients[username]
 }
 
 func (c *Client) Send(message string) {
@@ -306,6 +300,7 @@ func main() {
 
 	server := &Server{
 		listener: listener,
+		clients:  make(map[string]*Client),
 	}
 	log.Println("Starting Server...")
 	server.Start()
