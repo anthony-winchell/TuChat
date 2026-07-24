@@ -37,7 +37,7 @@ func main() {
 
 	<-done
 
-	fmt.Println("Disconnected from server.")
+	fmt.Println("Disconnected from server")
 }
 
 func connectToServer() (conn net.Conn, err error) {

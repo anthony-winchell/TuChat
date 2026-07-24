@@ -8,6 +8,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"os"
+	"os/signal"
 )
 
 var ErrUsernameTaken = errors.New("Username already taken")
@@ -17,16 +19,18 @@ type Client struct {
 	conn     net.Conn
 	username string
 	reader   *bufio.Reader
+	writeMu  sync.Mutex
 }
 
 type Server struct {
 	mu       sync.RWMutex
 	listener net.Listener
 	clients  map[string]*Client
+	conns  map[net.Conn]struct{}
+	wg       sync.WaitGroup
 }
 
 func (s *Server) Start() {
-	defer s.listener.Close()
 	log.Println("Server started")
 	for {
 		conn, err := s.listener.Accept()
@@ -37,8 +41,25 @@ func (s *Server) Start() {
 			log.Println(err)
 			continue
 		}
-		go s.handleConnection(conn)
+
+		s.addConnection(conn)
+
+		s.wg.Go(func() {
+			s.handleConnection(conn)
+		})
 	}
+}
+
+func (s *Server) Shutdown() {
+	if err := s.listener.Close(); err != nil { 
+		log.Println(err) 
+	}
+
+	s.sendToAll("Server shutting down.", nil)
+
+	s.closeClients()
+
+	s.wg.Wait()
 }
 
 func (s *Server) removeClient(client *Client) {
@@ -48,8 +69,17 @@ func (s *Server) removeClient(client *Client) {
 	delete(s.clients, client.username)
 }
 
+func (s *Server) closeClients() {
+	for _, conn := range s.connSnapshot() {
+		conn.Close()
+	}
+}
+
 func (s *Server) handleConnection(conn net.Conn) {
-	defer conn.Close()
+	defer func() {
+		s.removeConnection(conn)
+		conn.Close()
+	}()
 
 	client, err := s.registerClient(conn)
 	if err != nil {
@@ -67,6 +97,18 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	s.leaveAlert(client)
 }
+
+func (s *Server) addConnection(conn net.Conn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.conns[conn] = struct{}{}
+}
+
+func (s *Server) removeConnection(conn net.Conn) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.conns, conn)
+} 
 
 func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 
@@ -172,17 +214,17 @@ func (s *Server) addClient(client *Client) error {
 }
 
 func (s *Server) broadcastMessage(message string, sender *Client) {
-	formattedMessage := sender.username + ": " + strings.TrimSpace(message) + "\n"
+	formattedMessage := sender.username + ": " + strings.TrimSpace(message)
 
 	s.sendToAll(formattedMessage, sender)
 }
 
 func (s *Server) joinAlert(joiner *Client) {
-	s.sendToAll(joiner.username+" has joined the chat.\n", joiner)
+	s.sendToAll(joiner.username+" has joined the chat.", joiner)
 }
 
 func (s *Server) leaveAlert(leaver *Client) {
-	s.sendToAll(leaver.username+" has left the chat.\n", leaver)
+	s.sendToAll(leaver.username+" has left the chat.", leaver)
 }
 
 func (s *Server) clientsSnapshot() []*Client {
@@ -196,6 +238,18 @@ func (s *Server) clientsSnapshot() []*Client {
 	}
 
 	return clients
+}
+
+func (s *Server) connSnapshot() []net.Conn {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	conns := make([]net.Conn, 0, len(s.conns))
+
+	for conn := range s.conns {
+		conns = append(conns, conn)
+	}
+	return conns
 }
 
 func (s *Server) sendToAll(message string, except *Client) {
@@ -286,7 +340,19 @@ func (s *Server) findClient(username string) *Client {
 }
 
 func (c *Client) Send(message string) {
+
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+
 	if _, err := c.conn.Write([]byte(message + "\n")); err != nil {
+		log.Println(err)
+	}
+}
+
+func (c *Client) Close() {
+	c.writeMu.Lock()
+	defer c.writeMu.Unlock()
+	if err := c.conn.Close(); err != nil {
 		log.Println(err)
 	}
 }
@@ -301,7 +367,17 @@ func main() {
 	server := &Server{
 		listener: listener,
 		clients:  make(map[string]*Client),
+		conns: make(map[net.Conn]struct{}),
 	}
 	log.Println("Starting Server...")
-	server.Start()
+	go server.Start()
+
+	signals := make(chan os.Signal, 1)
+
+	signal.Notify(signals, os.Interrupt)
+
+	<-signals
+
+	server.Shutdown()
+
 }
