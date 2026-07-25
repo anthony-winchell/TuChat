@@ -10,6 +10,7 @@ import (
 	"time"
 	"os"
 	"os/signal"
+	"fmt"
 )
 
 var ErrUsernameTaken = errors.New("Username already taken")
@@ -25,9 +26,31 @@ type Client struct {
 type Server struct {
 	mu       sync.RWMutex
 	listener net.Listener
+
+	name string
+
 	clients  map[string]*Client
 	conns  map[net.Conn]struct{}
+
 	wg       sync.WaitGroup
+}
+
+func (s *Server) configureName() {
+	reader := bufio.NewReader(os.Stdin)
+
+	fmt.Println("Name Your Server (leave blank for 'TuChat'):")
+
+	name, err := reader.ReadString('\n')
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	name = strings.TrimSpace(name)
+
+	if name != "" {
+		s.name = name 
+	}
 }
 
 func (s *Server) Start() {
@@ -48,6 +71,19 @@ func (s *Server) Start() {
 			s.handleConnection(conn)
 		})
 	}
+}
+
+func (s *Server) sendWelcome(client *Client) {
+	client.Send(fmt.Sprintf(
+		"%s\n"+
+			"Welcome to %s, %s!\n\n"+
+			`Type "/help" for a list of commands.`+"\n"+
+			"%s",
+		strings.Repeat("=", 35),
+		s.name,
+		client.username,
+		strings.Repeat("=", 35),
+	))
 }
 
 func (s *Server) Shutdown() {
@@ -86,6 +122,8 @@ func (s *Server) handleConnection(conn net.Conn) {
 		log.Println(err)
 		return
 	}
+
+	s.sendWelcome(client)
 
 	log.Printf("%s Connected", client.username)
 
@@ -155,11 +193,6 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 		}
 
 		break
-	}
-
-	_, err := conn.Write([]byte("Thank you " + client.username + ". You may begin chatting.\n"))
-	if err != nil {
-		return nil, err
 	}
 
 	s.joinAlert(client)
@@ -361,14 +394,18 @@ func main() {
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		log.Println(err)
-		return
+		return 
 	}
 
 	server := &Server{
+		name:     "TuChat",
 		listener: listener,
 		clients:  make(map[string]*Client),
 		conns: make(map[net.Conn]struct{}),
 	}
+
+	server.configureName()
+
 	log.Println("Starting Server...")
 	go server.Start()
 
