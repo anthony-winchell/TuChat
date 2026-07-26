@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"fmt"
 	"log"
 	"net"
 	"os"
+	"tuchat/protocol"
 	"strings"
 )
 
@@ -16,13 +18,17 @@ func main() {
 		log.Println(err)
 		return
 	}
+	decoder := json.NewDecoder(conn)
+	encoder := json.NewEncoder(conn)
+
 
 	defer conn.Close()
 
-	reader := bufio.NewReader(conn)
 	terminalReader := bufio.NewReader(os.Stdin)
 
-	if err := setUsername(conn, reader, terminalReader); err != nil {
+	displayWelcome(decoder)
+
+	if err := setUsername(decoder, encoder, terminalReader); err != nil {
 		log.Println(err)
 		return
 	}
@@ -46,14 +52,14 @@ func connectToServer() (conn net.Conn, err error) {
 }
 
 // handles recieving messages from the server. use as goroutine so that it can run in the background
-func receiveMessages(reader *bufio.Reader) {
+func receiveMessages(decoder *json.Decoder) {
 	for {
-		message, err := reader.ReadString('\n')
-		if err != nil {
+		var message protocol.Message
+
+		if err := decoder.Decode(&message); err != nil {
 			log.Println(err)
-			return
+			return 
 		}
-		fmt.Println(strings.TrimSpace(message))
 	}
 }
 
@@ -74,32 +80,47 @@ func sendMessages(conn net.Conn, terminalReader *bufio.Reader) {
 	}
 }
 
-// after connecting to the server, the client will be prompted to enter a username
-func setUsername(conn net.Conn, reader *bufio.Reader, terminalReader *bufio.Reader) error {
+func displayWelcome(decoder *json.Decoder) {
+	var message protocol.Message
 
+	if err := decoder.Decode(&message); err != nil {
+		log.Println(err)
+		return
+	}
+	fmt.Println(message.Message)
+}
+
+// after connecting to the server, the client will be prompted to enter a username
+func setUsername(decoder *json.Decoder, encoder *json.Encoder, terminalReader *bufio.Reader) error {
+	var message protocol.Message
 	for {
-		prompt, err := reader.ReadString('\n')
-		if err != nil {
+		if err := decoder.Decode(&message); err != nil {
 			return err
 		}
 
-		prompt = strings.TrimSpace(prompt)
-		fmt.Println(prompt)
+		switch message.Type {
+			case "username_prompt":
+				fmt.Println(message.Message)
 
-		if strings.HasPrefix(prompt, "Thank you") {
-			return nil
-		}
+				username, err := terminalReader.ReadString('\n')
+				if err != nil {
+					return err
+				}
 
-		if strings.HasSuffix(prompt, ":") {
-			username, err := terminalReader.ReadString('\n')
-			if err != nil {
-				return err
-			}
-
-			_, err = conn.Write([]byte(username))
-			if err != nil {
-				return err
-			}
+				if err := Send(encoder, protocol.Message{
+					Type: "username",
+					Username: strings.TrimSpace(username),
+				}); err != nil {
+					return err	
+				}
+			case "error":
+				fmt.Println(message.Message)
+			case "username_accepted": 
+				return nil
 		}
 	}
+}
+
+func Send(encoder *json.Encoder, message protocol.Message) error {
+	return encoder.Encode(message)
 }

@@ -2,15 +2,17 @@ package main
 
 import (
 	"bufio"
+	"encoding/json"
 	"errors"
+	"fmt"
 	"log"
 	"net"
+	"os"
+	"os/signal"
 	"strings"
 	"sync"
 	"time"
-	"os"
-	"os/signal"
-	"fmt"
+	"tuchat/protocol"
 )
 
 var ErrUsernameTaken = errors.New("Username already taken")
@@ -19,7 +21,9 @@ var ErrUsernameFormat = errors.New(`Username cannot contain ':'. Must be between
 type Client struct {
 	conn     net.Conn
 	username string
-	reader   *bufio.Reader
+
+	decoder  *json.Decoder
+	encoder  *json.Encoder
 	writeMu  sync.Mutex
 }
 
@@ -74,16 +78,16 @@ func (s *Server) Start() {
 }
 
 func (s *Server) sendWelcome(client *Client) {
-	client.Send(fmt.Sprintf(
-		"%s\n"+
-			"Welcome to %s, %s!\n\n"+
-			`Type "/help" for a list of commands.`+"\n"+
-			"%s",
-		strings.Repeat("=", 35),
-		s.name,
-		client.username,
-		strings.Repeat("=", 35),
-	))
+	client.Send(protocol.Message{
+		Type: "welcome",
+		Message: fmt.Sprintf(
+			"%s\nWelcome to %s, %s!\n\nType /help for commands.\n%s",
+        strings.Repeat("=", 35),
+        s.name,
+        client.username,
+        strings.Repeat("=", 35),
+		),
+	})
 }
 
 func (s *Server) Shutdown() {
@@ -149,48 +153,50 @@ func (s *Server) removeConnection(conn net.Conn) {
 } 
 
 func (s *Server) registerClient(conn net.Conn) (*Client, error) {
-
-	reader := bufio.NewReader(conn)
 	var client *Client
-	if _, err := conn.Write([]byte("Choose a Username:\n")); err != nil {
-		return nil, err
-	}
+	client = &Client{
+			conn:     conn,
+			decoder:  json.NewDecoder(conn),
+			encoder:  json.NewEncoder(conn),
+		}
+
+	client.Send(protocol.Message{
+		Type: "username_prompt",
+		Message: "Choose a username:",
+	})
+
 	for {
-		username, err := reader.ReadString('\n')
-		if err != nil {
+		var message protocol.Message 
+
+		if err := client.decoder.Decode(&message); err != nil {
 			return nil, err
 		}
 
-		username = strings.TrimSpace(username)
-
-		if username == "" {
-			if _, err := conn.Write([]byte("Username cannot be empty. Please choose another:\n")); err != nil {
-				return nil, err
-			}
+		if message.Type != "username" {
 			continue
 		}
 
-		client = &Client{
-			conn:     conn,
-			username: username,
-			reader:  reader,
-		}
+		client.username = strings.TrimSpace(message.Username)
 
-		err = s.addClient(client)
-
-		if errors.Is(err, ErrUsernameFormat) {
-			if _, err := conn.Write([]byte(ErrUsernameFormat.Error() + " Please choose another:\n")); err != nil {
-				return nil, err
-			}
-			continue
-		}
-
+		err := s.addClient(client)
 		if errors.Is(err, ErrUsernameTaken) {
-			if _, err := conn.Write([]byte("Username already taken. Please choose another:\n")); err != nil {
-				return nil, err
-			}
+			client.Send(protocol.Message{
+				Type: "error",
+				Message: ErrUsernameTaken.Error(),
+			})
 			continue
 		}
+		if errors.Is(err, ErrUsernameFormat) {
+			client.Send(protocol.Message{
+				Type: "error",
+				Message: ErrUsernameFormat.Error(),
+			})
+			continue
+		}
+
+		client.Send(protocol.Message{
+			Type: "username_accepted",
+		})
 
 		break
 	}
@@ -285,7 +291,7 @@ func (s *Server) connSnapshot() []net.Conn {
 	return conns
 }
 
-func (s *Server) sendToAll(message string, except *Client) {
+func (s *Server) sendToAll(message protocol.Message, except *Client) {
 	for _, client := range s.clientsSnapshot() {
 		if client == except {
 			continue
@@ -372,14 +378,12 @@ func (s *Server) findClient(username string) *Client {
 	return s.clients[username]
 }
 
-func (c *Client) Send(message string) {
+func (c *Client) Send(msg protocol.Message) error  {
 
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
 
-	if _, err := c.conn.Write([]byte(message + "\n")); err != nil {
-		log.Println(err)
-	}
+	return c.encoder.Encode(msg)
 }
 
 func (c *Client) Close() {
