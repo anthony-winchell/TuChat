@@ -78,7 +78,7 @@ func (s *Server) Start() {
 }
 
 func (s *Server) sendWelcome(client *Client) {
-	client.Send(protocol.Message{
+	if err := client.Send(protocol.Message{
 		Type: "welcome",
 		Message: fmt.Sprintf(
 			"%s\nWelcome to %s, %s!\n\nType /help for commands.\n%s",
@@ -87,7 +87,9 @@ func (s *Server) sendWelcome(client *Client) {
         client.username,
         strings.Repeat("=", 35),
 		),
-	})
+	}); err != nil {
+		log.Println(err)
+	}
 }
 
 func (s *Server) Shutdown() {
@@ -95,7 +97,10 @@ func (s *Server) Shutdown() {
 		log.Println(err) 
 	}
 
-	s.sendToAll("Server shutting down.", nil)
+	s.sendToAll(protocol.Message{
+		Type: "system",
+		Message: "Server shutting down",
+	},nil)
 
 	s.closeClients()
 
@@ -160,10 +165,12 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 			encoder:  json.NewEncoder(conn),
 		}
 
-	client.Send(protocol.Message{
+	if err := client.Send(protocol.Message{
 		Type: "username_prompt",
 		Message: "Choose a username:",
-	})
+	}); err != nil {
+		return nil, err
+	}
 
 	for {
 		var message protocol.Message 
@@ -180,23 +187,29 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 
 		err := s.addClient(client)
 		if errors.Is(err, ErrUsernameTaken) {
-			client.Send(protocol.Message{
+			if err := client.Send(protocol.Message{
 				Type: "error",
 				Message: ErrUsernameTaken.Error(),
-			})
+			}); err != nil {
+				return nil, err
+			}
 			continue
 		}
 		if errors.Is(err, ErrUsernameFormat) {
-			client.Send(protocol.Message{
+			if err := client.Send(protocol.Message{
 				Type: "error",
 				Message: ErrUsernameFormat.Error(),
-			})
+			}); err != nil {
+				return nil, err
+			}
 			continue
 		}
 
-		client.Send(protocol.Message{
+		if err := client.Send(protocol.Message{
 			Type: "username_accepted",
-		})
+		}); err != nil {
+			return nil, err
+		}
 
 		break
 	}
@@ -210,24 +223,30 @@ func (s *Server) handleMessages(client *Client) {
 	for {
 		client.conn.SetReadDeadline(time.Now().Add(60 * time.Minute))
 
-		message, err := client.reader.ReadString('\n')
-		if err != nil {
-			log.Println(err)
+		var msg protocol.Message
+
+		if err := client.decoder.Decode(&msg); err != nil {
+			if !errors.Is(err, net.ErrClosed) {
+				log.Println(err)
+			}
 			return
 		}
 
-		message = strings.TrimSpace(message)
-
-		if message == "" {
-			continue
-		}
-		if strings.HasPrefix(message, "/") {
-			if s.executeCommand(client, message) {
-				return
+		switch msg.Type {
+		case "chat":
+			s.broadcastMessage(msg.Message, client)
+		case "command": 
+			if s.executeCommand(client, msg.Message) {
+				return 
 			}
-			continue
+		default: 
+			if err := client.Send(protocol.Message{
+				Type: "error",
+				Message: "Unknown message type: " + msg.Type,
+			}); err != nil {
+				log.Println(err)
+			}
 		}
-		s.broadcastMessage(message, client)
 	}
 }
 
@@ -252,18 +271,26 @@ func (s *Server) addClient(client *Client) error {
 	return nil
 }
 
-func (s *Server) broadcastMessage(message string, sender *Client) {
-	formattedMessage := sender.username + ": " + strings.TrimSpace(message)
-
-	s.sendToAll(formattedMessage, sender)
+func (s *Server) broadcastMessage(text string, sender *Client) {
+	s.sendToAll(protocol.Message{
+		Type: "chat",
+		Username: sender.username,
+		Message: text,
+	}, sender)
 }
 
 func (s *Server) joinAlert(joiner *Client) {
-	s.sendToAll(joiner.username+" has joined the chat.", joiner)
+	s.sendToAll(protocol.Message{
+		Type: "join",
+		Username: joiner.username,
+	}, joiner)
 }
 
 func (s *Server) leaveAlert(leaver *Client) {
-	s.sendToAll(leaver.username+" has left the chat.", leaver)
+	s.sendToAll(protocol.Message{
+		Type: "leave",
+		Username: leaver.username,
+	}, leaver)
 }
 
 func (s *Server) clientsSnapshot() []*Client {
@@ -296,12 +323,18 @@ func (s *Server) sendToAll(message protocol.Message, except *Client) {
 		if client == except {
 			continue
 		}
-		client.Send(message)
+		if err := client.Send(message); err != nil {
+			log.Println(err)
+		}
 	}
 }
 
 func (s *Server) executeCommand(client *Client, input string) bool {
 	parts := strings.Fields(input)
+
+	if len(parts) == 0 {
+		return false
+	}
 
 	switch parts[0] {
 	case "/quit":
@@ -313,59 +346,105 @@ func (s *Server) executeCommand(client *Client, input string) bool {
 	case "/pm":
 		return s.commandPM(client, parts)
 	default:
-		client.Send("Invalid Command. Try /help.")
+		if err := client.Send(protocol.Message{
+			Type: "error",
+			Message: "Unknown command: " + parts[0],
+		}); err != nil {
+			log.Println(err)
+		}
 		return false
 	}
 }
 
 func (s *Server) commandPM(client *Client, parts []string) bool {
 	if len(parts) < 3{
-			client.Send("Usage: /pm <username> <message>")
+			if err := client.Send(protocol.Message{
+				Type: "error",
+				Message: "Usage: /pm <username> <message>",
+			}); err != nil {
+				log.Println(err)
+			}
 			return false
 		}
 
 		receiver := s.findClient(parts[1])
 
 		if receiver == nil {
-			client.Send("User not found.")
+			if err := client.Send(protocol.Message{
+				Type: "error",
+				Message: "User not found: " + parts[1],
+			}); err != nil {
+				log.Println(err)
+			}
 			return false
 		}
 
 		if receiver == client {
-			client.Send("You cannot /pm yourself.")
+			if err := client.Send(protocol.Message{
+				Type: "error",
+				Message: "You cannot /pm yourself",
+			}); err != nil {
+				log.Println(err)
+			}
 			return false
 		}
 
 		message := strings.Join(parts[2:], " ")
 
-		receiver.Send("(Private) " + client.username + ": " + message)
+		if err :=receiver.Send(protocol.Message{
+			Type: "pm",
+			Username: client.username, 
+			Target: parts[1],
+			Message: message,
+		}); err != nil {
+			log.Println(err)
+		}
 
-		client.Send("(To " + receiver.username + ") " + message)
+		if err := client.Send(protocol.Message{
+			Type: "pm",
+			Username: client.username,
+			Target: parts[1],
+			Message: message,
+		}); err != nil {
+			log.Println(err)
+		}
 		return false
 }
 
 func (s *Server) commandHelp(client *Client) bool {
-	client.Send("Available Commands:")
-		client.Send("/users")
-		client.Send("/help")
-		client.Send("/quit")
-		client.Send("/pm <username> <message>")
+	if err := client.Send(protocol.Message{
+		Type: "system",
+		Message: "Commands: /quit, /users, /pm <username> <message>",
+	}); err != nil {
+		log.Println(err)
+	}
 
-		return false
+	return false
 }
 
 func (s *Server) commandQuit(client *Client) bool {
-	client.Send("Goodbye.")
+	if err :=client.Send(protocol.Message{
+		Type: "system",
+		Message: "Goodbye",
+	}); err != nil {
+		log.Println(err)
+	}
 	return true
 }
 
 func (s *Server) commandUsers(client *Client) bool {
 	users := s.clientsSnapshot()
-
-	client.Send("Active users:")
+	usernames := make([]string, 0, len(users))
 
 	for _, user := range users {
-		client.Send(user.username)
+		usernames = append(usernames, user.username)
+	}
+
+	if err := client.Send(protocol.Message{
+		Type: "users",
+		Users: usernames,
+	}); err != nil {
+		log.Println(err)
 	}
 
 	return false

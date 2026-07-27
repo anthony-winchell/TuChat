@@ -26,8 +26,6 @@ func main() {
 
 	terminalReader := bufio.NewReader(os.Stdin)
 
-	displayWelcome(decoder)
-
 	if err := setUsername(decoder, encoder, terminalReader); err != nil {
 		log.Println(err)
 		return
@@ -35,11 +33,11 @@ func main() {
 
 	done := make(chan struct{})
 	go func() {
-		receiveMessages(reader)
+		receiveMessages(decoder)
 		close(done)
 	}()
 
-	go sendMessages(conn, terminalReader)
+	go sendMessages(encoder, terminalReader)
 
 	<-done
 
@@ -60,34 +58,59 @@ func receiveMessages(decoder *json.Decoder) {
 			log.Println(err)
 			return 
 		}
+
+		switch message.Type {
+		case "chat":
+			fmt.Printf("%s: %s\n", message.Username, message.Message)
+		case "pm":
+			fmt.Printf("[PM] %s: %s\n", message.Username, message.Message)
+		case "system":
+			fmt.Println(message.Message)
+		case "users":
+			renderUsers(message.Users)
+		case "welcome": 
+			fmt.Println(message.Message)
+		case "join":
+			fmt.Printf("%s joined the chat\n", message.Username)
+		case "leave":
+			fmt.Printf("%s left the chat\n", message.Username)
+		case "error": 
+			fmt.Println("Error: ", message.Message)
+		}
+		
 	}
 }
 
 // handles sending messages to the server
-func sendMessages(conn net.Conn, terminalReader *bufio.Reader) {
+func sendMessages(encoder *json.Encoder, terminalReader *bufio.Reader) {
 	for {
-		message, err := terminalReader.ReadString('\n')
+		input, err := terminalReader.ReadString('\n')
 		if err != nil {
 			log.Println(err)
 			return
 		}
 
-		_, err = conn.Write([]byte(message))
-		if err != nil {
+		input = strings.TrimSpace(input)
+
+		if input == "" {
+			continue
+		}
+
+		msg := protocol.Message {
+			Message: input,
+		}
+
+		if strings.HasPrefix(input, "/") {
+			msg.Type = "command"
+		} else {
+			msg.Type = "chat"
+		}
+
+		if err := Send(encoder, msg); err != nil {
 			log.Println(err)
 			return
 		}
 	}
-}
-
-func displayWelcome(decoder *json.Decoder) {
-	var message protocol.Message
-
-	if err := decoder.Decode(&message); err != nil {
-		log.Println(err)
-		return
-	}
-	fmt.Println(message.Message)
 }
 
 // after connecting to the server, the client will be prompted to enter a username
@@ -118,6 +141,13 @@ func setUsername(decoder *json.Decoder, encoder *json.Encoder, terminalReader *b
 			case "username_accepted": 
 				return nil
 		}
+	}
+}
+
+func renderUsers(usernames []string) {
+	fmt.Println("Current Users: ")
+	for _, username := range usernames {
+		fmt.Println("*" + username)
 	}
 }
 
