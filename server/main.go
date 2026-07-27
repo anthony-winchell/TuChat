@@ -172,8 +172,8 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 		return nil, err
 	}
 
-	var message protocol.Message
 	for {
+		var message protocol.Message
 
 		if err := client.decoder.Decode(&message); err != nil {
 			return nil, err
@@ -196,7 +196,7 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 			}
 			if err := client.Send(protocol.Message{
 				Type:    "username_prompt",
-				Message: "Choose a username: ",
+				Message: "Choose a username:",
 			}); err != nil {
 				return nil, err
 			}
