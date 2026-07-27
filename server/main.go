@@ -22,9 +22,9 @@ type Client struct {
 	conn     net.Conn
 	username string
 
-	decoder  *json.Decoder
-	encoder  *json.Encoder
-	writeMu  sync.Mutex
+	decoder *json.Decoder
+	encoder *json.Encoder
+	writeMu sync.Mutex
 }
 
 type Server struct {
@@ -33,10 +33,10 @@ type Server struct {
 
 	name string
 
-	clients  map[string]*Client
-	conns  map[net.Conn]struct{}
+	clients map[string]*Client
+	conns   map[net.Conn]struct{}
 
-	wg       sync.WaitGroup
+	wg sync.WaitGroup
 }
 
 func (s *Server) configureName() {
@@ -53,7 +53,7 @@ func (s *Server) configureName() {
 	name = strings.TrimSpace(name)
 
 	if name != "" {
-		s.name = name 
+		s.name = name
 	}
 }
 
@@ -82,10 +82,10 @@ func (s *Server) sendWelcome(client *Client) {
 		Type: "welcome",
 		Message: fmt.Sprintf(
 			"%s\nWelcome to %s, %s!\n\nType /help for commands.\n%s",
-        strings.Repeat("=", 35),
-        s.name,
-        client.username,
-        strings.Repeat("=", 35),
+			strings.Repeat("=", 35),
+			s.name,
+			client.username,
+			strings.Repeat("=", 35),
 		),
 	}); err != nil {
 		log.Println(err)
@@ -93,14 +93,14 @@ func (s *Server) sendWelcome(client *Client) {
 }
 
 func (s *Server) Shutdown() {
-	if err := s.listener.Close(); err != nil { 
-		log.Println(err) 
+	if err := s.listener.Close(); err != nil {
+		log.Println(err)
 	}
 
 	s.sendToAll(protocol.Message{
-		Type: "system",
+		Type:    "system",
 		Message: "Server shutting down",
-	},nil)
+	}, nil)
 
 	s.closeClients()
 
@@ -155,25 +155,25 @@ func (s *Server) removeConnection(conn net.Conn) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	delete(s.conns, conn)
-} 
+}
 
 func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 	var client *Client
 	client = &Client{
-			conn:     conn,
-			decoder:  json.NewDecoder(conn),
-			encoder:  json.NewEncoder(conn),
-		}
+		conn:    conn,
+		decoder: json.NewDecoder(conn),
+		encoder: json.NewEncoder(conn),
+	}
 
 	if err := client.Send(protocol.Message{
-		Type: "username_prompt",
+		Type:    "username_prompt",
 		Message: "Choose a username:",
 	}); err != nil {
 		return nil, err
 	}
 
+	var message protocol.Message
 	for {
-		var message protocol.Message 
 
 		if err := client.decoder.Decode(&message); err != nil {
 			return nil, err
@@ -186,19 +186,17 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 		client.username = strings.TrimSpace(message.Username)
 
 		err := s.addClient(client)
-		if errors.Is(err, ErrUsernameTaken) {
+
+		if err != nil {
 			if err := client.Send(protocol.Message{
-				Type: "error",
-				Message: ErrUsernameTaken.Error(),
+				Type:    "error",
+				Message: err.Error(),
 			}); err != nil {
 				return nil, err
 			}
-			continue
-		}
-		if errors.Is(err, ErrUsernameFormat) {
 			if err := client.Send(protocol.Message{
-				Type: "error",
-				Message: ErrUsernameFormat.Error(),
+				Type:    "username_prompt",
+				Message: "Choose a username: ",
 			}); err != nil {
 				return nil, err
 			}
@@ -235,13 +233,13 @@ func (s *Server) handleMessages(client *Client) {
 		switch msg.Type {
 		case "chat":
 			s.broadcastMessage(msg.Message, client)
-		case "command": 
+		case "command":
 			if s.executeCommand(client, msg.Message) {
-				return 
+				return
 			}
-		default: 
+		default:
 			if err := client.Send(protocol.Message{
-				Type: "error",
+				Type:    "error",
 				Message: "Unknown message type: " + msg.Type,
 			}); err != nil {
 				log.Println(err)
@@ -258,7 +256,7 @@ func (s *Server) addClient(client *Client) error {
 	if len(client.username) < 3 || len(client.username) > 13 {
 		return ErrUsernameFormat
 	}
-	
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -273,22 +271,22 @@ func (s *Server) addClient(client *Client) error {
 
 func (s *Server) broadcastMessage(text string, sender *Client) {
 	s.sendToAll(protocol.Message{
-		Type: "chat",
+		Type:     "chat",
 		Username: sender.username,
-		Message: text,
+		Message:  text,
 	}, sender)
 }
 
 func (s *Server) joinAlert(joiner *Client) {
 	s.sendToAll(protocol.Message{
-		Type: "join",
+		Type:     "join",
 		Username: joiner.username,
 	}, joiner)
 }
 
 func (s *Server) leaveAlert(leaver *Client) {
 	s.sendToAll(protocol.Message{
-		Type: "leave",
+		Type:     "leave",
 		Username: leaver.username,
 	}, leaver)
 }
@@ -347,7 +345,7 @@ func (s *Server) executeCommand(client *Client, input string) bool {
 		return s.commandPM(client, parts)
 	default:
 		if err := client.Send(protocol.Message{
-			Type: "error",
+			Type:    "error",
 			Message: "Unknown command: " + parts[0],
 		}); err != nil {
 			log.Println(err)
@@ -357,63 +355,63 @@ func (s *Server) executeCommand(client *Client, input string) bool {
 }
 
 func (s *Server) commandPM(client *Client, parts []string) bool {
-	if len(parts) < 3{
-			if err := client.Send(protocol.Message{
-				Type: "error",
-				Message: "Usage: /pm <username> <message>",
-			}); err != nil {
-				log.Println(err)
-			}
-			return false
-		}
-
-		receiver := s.findClient(parts[1])
-
-		if receiver == nil {
-			if err := client.Send(protocol.Message{
-				Type: "error",
-				Message: "User not found: " + parts[1],
-			}); err != nil {
-				log.Println(err)
-			}
-			return false
-		}
-
-		if receiver == client {
-			if err := client.Send(protocol.Message{
-				Type: "error",
-				Message: "You cannot /pm yourself",
-			}); err != nil {
-				log.Println(err)
-			}
-			return false
-		}
-
-		message := strings.Join(parts[2:], " ")
-
-		if err :=receiver.Send(protocol.Message{
-			Type: "pm",
-			Username: client.username, 
-			Target: parts[1],
-			Message: message,
-		}); err != nil {
-			log.Println(err)
-		}
-
+	if len(parts) < 3 {
 		if err := client.Send(protocol.Message{
-			Type: "pm",
-			Username: client.username,
-			Target: parts[1],
-			Message: message,
+			Type:    "error",
+			Message: "Usage: /pm <username> <message>",
 		}); err != nil {
 			log.Println(err)
 		}
 		return false
+	}
+
+	receiver := s.findClient(parts[1])
+
+	if receiver == nil {
+		if err := client.Send(protocol.Message{
+			Type:    "error",
+			Message: "User not found: " + parts[1],
+		}); err != nil {
+			log.Println(err)
+		}
+		return false
+	}
+
+	if receiver == client {
+		if err := client.Send(protocol.Message{
+			Type:    "error",
+			Message: "You cannot /pm yourself",
+		}); err != nil {
+			log.Println(err)
+		}
+		return false
+	}
+
+	message := strings.Join(parts[2:], " ")
+
+	if err := receiver.Send(protocol.Message{
+		Type:     "pm",
+		Username: client.username,
+		Target:   parts[1],
+		Message:  message,
+	}); err != nil {
+		log.Println(err)
+	}
+
+	if err := client.Send(protocol.Message{
+		Type:     "pm",
+		Username: client.username,
+		Target:   parts[1],
+		Message:  message,
+	}); err != nil {
+		log.Println(err)
+	}
+	return false
 }
 
 func (s *Server) commandHelp(client *Client) bool {
 	if err := client.Send(protocol.Message{
-		Type: "system",
+		Type:    "system",
 		Message: "Commands: /quit, /users, /pm <username> <message>",
 	}); err != nil {
 		log.Println(err)
@@ -423,8 +421,8 @@ func (s *Server) commandHelp(client *Client) bool {
 }
 
 func (s *Server) commandQuit(client *Client) bool {
-	if err :=client.Send(protocol.Message{
-		Type: "system",
+	if err := client.Send(protocol.Message{
+		Type:    "system",
 		Message: "Goodbye",
 	}); err != nil {
 		log.Println(err)
@@ -441,7 +439,7 @@ func (s *Server) commandUsers(client *Client) bool {
 	}
 
 	if err := client.Send(protocol.Message{
-		Type: "users",
+		Type:  "users",
 		Users: usernames,
 	}); err != nil {
 		log.Println(err)
@@ -457,7 +455,7 @@ func (s *Server) findClient(username string) *Client {
 	return s.clients[username]
 }
 
-func (c *Client) Send(msg protocol.Message) error  {
+func (c *Client) Send(msg protocol.Message) error {
 
 	c.writeMu.Lock()
 	defer c.writeMu.Unlock()
@@ -477,14 +475,14 @@ func main() {
 	listener, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		log.Println(err)
-		return 
+		return
 	}
 
 	server := &Server{
 		name:     "TuChat",
 		listener: listener,
 		clients:  make(map[string]*Client),
-		conns: make(map[net.Conn]struct{}),
+		conns:    make(map[net.Conn]struct{}),
 	}
 
 	server.configureName()
