@@ -145,7 +145,7 @@ func setUsername(decoder *json.Decoder, encoder *json.Encoder, terminalReader *b
 }
 
 func renderUsers(usernames []string) {
-	fmt.Println("Current Users: ")
+	fmt.Println("Users in this Room: ")
 	for _, username := range usernames {
 		fmt.Println("*" + username)
 	}
