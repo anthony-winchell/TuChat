@@ -1,8 +1,8 @@
 package main
 
 import (
-	"tuchat/protocol"
 	"log"
+	"tuchat/protocol"
 )
 
 func (c *Client) Send(msg protocol.Message) error {
@@ -19,4 +19,16 @@ func (c *Client) Close() {
 	if err := c.conn.Close(); err != nil {
 		log.Println(err)
 	}
+}
+
+func (c *Client) Room() *Room {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.room
+}
+
+func (c *Client) Username() string {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.username
 }

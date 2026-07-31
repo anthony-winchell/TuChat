@@ -19,8 +19,12 @@ type Client struct {
 }
 
 type Room struct {
-	name string 
+	mu sync.RWMutex
+
+	name    string
 	clients map[string]*Client
+
+	operators map[string]struct{}
 }
 
 type Server struct {
