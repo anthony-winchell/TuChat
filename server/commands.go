@@ -1,17 +1,18 @@
-package main 
+package main
 
 import (
-	"tuchat/protocol"
+	"fmt"
 	"log"
 	"strings"
+	"tuchat/protocol"
 )
 
 func (s *Server) commandUsers(client *Client) bool {
-	users := s.roomSnapshot(client.room)
+	users := client.Room().Users()
 	usernames := make([]string, 0, len(users))
 
 	for _, user := range users {
-		usernames = append(usernames, user.username)
+		usernames = append(usernames, user.Username())
 	}
 
 	if err := client.Send(protocol.Message{
@@ -116,6 +117,8 @@ func (s *Server) executeCommand(client *Client, input string) bool {
 		return s.commandHelp(client)
 	case "/pm":
 		return s.commandPM(client, parts)
+	case "/join":
+		return s.commandJoinRoom(client, parts[1])
 	default:
 		if err := client.Send(protocol.Message{
 			Type:    "error",
@@ -125,4 +128,42 @@ func (s *Server) executeCommand(client *Client, input string) bool {
 		}
 		return false
 	}
+}
+
+func (s *Server) commandJoinRoom(client *Client, roomName string) bool {
+	if err := s.JoinRoom(client, roomName); err != nil {
+		if err := client.Send(protocol.Message{
+			Type:    "error",
+			Message: err.Error(),
+		}); err != nil {
+			log.Println(err)
+		}
+		return false
+	}
+
+	return false
+}
+
+func (s *Server) commandRooms(client *Client) bool {
+	rooms := s.RoomsSnapshot()
+
+	if err := client.Send(protocol.Message{
+		Type:    "system",
+		Message: "Rooms:",
+	}); err != nil {
+		log.Println(err)
+	}
+
+	for _, room := range rooms {
+		if err := client.Send(
+			protocol.Message{
+				Type:    "system",
+				Message: fmt.Sprintf("%s: %d users", room.Name(), room.Size()),
+			},
+		); err != nil {
+			log.Println(err)
+		}
+	}
+
+	return false
 }

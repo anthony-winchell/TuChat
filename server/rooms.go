@@ -1,12 +1,19 @@
 package main
 
 import (
+	"errors"
 	"log"
 	"tuchat/protocol"
 )
 
+var ErrAlreadyInRoom = errors.New("already in room")
+
 func (s *Server) JoinRoom(client *Client, roomName string) error {
 	room := s.FindOrCreateRoom(roomName)
+
+	if client.Room() == room {
+		return ErrAlreadyInRoom
+	}
 
 	if client.Room() != nil {
 		client.Room().Remove(client)
@@ -16,7 +23,6 @@ func (s *Server) JoinRoom(client *Client, roomName string) error {
 
 	return nil
 }
-
 func (s *Server) FindOrCreateRoom(name string) *Room {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -85,6 +91,9 @@ func (r *Room) Broadcast(msg protocol.Message, sender *Client) {
 }
 
 func (r *Room) Name() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
 	return r.name
 }
 

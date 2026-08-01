@@ -1,20 +1,17 @@
 package main
 
 import (
-	"log"
-	"errors"
-	"net"
-	"tuchat/protocol"
-	"strings"
-	"encoding/json"
 	"bufio"
-	"os"
+	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
+	"net"
+	"os"
+	"strings"
 	"time"
-
+	"tuchat/protocol"
 )
-
-
 
 func (s *Server) Start() {
 	log.Println("Server started")
@@ -254,3 +251,15 @@ func (s *Server) handleMessages(client *Client) {
 	}
 }
 
+func (s *Server) RoomsSnapshot() []*Room {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	rooms := make([]*Room, 0, len(s.rooms))
+
+	for _, room := range s.rooms {
+		rooms = append(rooms, room)
+	}
+
+	return rooms
+}
