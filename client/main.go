@@ -7,8 +7,8 @@ import (
 	"log"
 	"net"
 	"os"
-	"tuchat/protocol"
 	"strings"
+	"tuchat/protocol"
 )
 
 func main() {
@@ -20,7 +20,6 @@ func main() {
 	}
 	decoder := json.NewDecoder(conn)
 	encoder := json.NewEncoder(conn)
-
 
 	defer conn.Close()
 
@@ -56,7 +55,7 @@ func receiveMessages(decoder *json.Decoder) {
 
 		if err := decoder.Decode(&message); err != nil {
 			log.Println(err)
-			return 
+			return
 		}
 
 		switch message.Type {
@@ -68,16 +67,16 @@ func receiveMessages(decoder *json.Decoder) {
 			fmt.Println(message.Message)
 		case "users":
 			renderUsers(message.Users)
-		case "welcome": 
+		case "welcome":
 			fmt.Println(message.Message)
 		case "join":
 			fmt.Printf("%s joined the chat\n", message.Username)
 		case "leave":
 			fmt.Printf("%s left the chat\n", message.Username)
-		case "error": 
+		case "error":
 			fmt.Println("Error: ", message.Message)
 		}
-		
+
 	}
 }
 
@@ -96,7 +95,7 @@ func sendMessages(encoder *json.Encoder, terminalReader *bufio.Reader) {
 			continue
 		}
 
-		msg := protocol.Message {
+		msg := protocol.Message{
 			Message: input,
 		}
 
@@ -122,24 +121,24 @@ func setUsername(decoder *json.Decoder, encoder *json.Encoder, terminalReader *b
 		}
 
 		switch message.Type {
-			case "username_prompt":
-				fmt.Println(message.Message)
+		case "username_prompt":
+			fmt.Println(message.Message)
 
-				username, err := terminalReader.ReadString('\n')
-				if err != nil {
-					return err
-				}
+			username, err := terminalReader.ReadString('\n')
+			if err != nil {
+				return err
+			}
 
-				if err := Send(encoder, protocol.Message{
-					Type: "username",
-					Username: strings.TrimSpace(username),
-				}); err != nil {
-					return err	
-				}
-			case "error":
-				fmt.Println(message.Message)
-			case "username_accepted": 
-				return nil
+			if err := Send(encoder, protocol.Message{
+				Type:     "username",
+				Username: strings.TrimSpace(username),
+			}); err != nil {
+				return err
+			}
+		case "error":
+			fmt.Println(message.Message)
+		case "username_accepted":
+			return nil
 		}
 	}
 }

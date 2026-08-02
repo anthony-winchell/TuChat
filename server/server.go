@@ -263,3 +263,23 @@ func (s *Server) RoomsSnapshot() []*Room {
 
 	return rooms
 }
+
+func (s *Server) RenameRoom(r *Room, newName string) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, exists := s.rooms[newName]; exists {
+		return false
+	}
+
+	oldName := r.name
+
+	r.mu.Lock()
+	r.name = newName
+	r.mu.Unlock()
+
+	delete(s.rooms, oldName)
+	s.rooms[newName] = r
+
+	return true
+}

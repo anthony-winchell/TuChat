@@ -9,23 +9,54 @@ import (
 var ErrAlreadyInRoom = errors.New("already in room")
 
 func (s *Server) JoinRoom(client *Client, roomName string) error {
-	room := s.FindOrCreateRoom(roomName)
+	room, new := s.FindOrCreateRoom(roomName)
 
 	if client.Room() == room {
 		return ErrAlreadyInRoom
 	}
 
+	oldRoom := client.Room()
+
 	if client.Room() != nil {
 		client.Room().Remove(client)
+
+		oldRoom.Broadcast(protocol.Message{
+			Type:    "system",
+			Message: client.Username() + " left the room",
+		}, client)
+	}
+
+	if new {
+		if err := client.Send(protocol.Message{
+			Type:    "system",
+			Message: "Room created: " + roomName,
+		}); err != nil {
+			log.Println(err)
+		}
+	}
+
+	if err := client.Send(protocol.Message{
+		Type:    "system",
+		Message: "Joined room: " + roomName,
+	}); err != nil {
+		log.Println(err)
 	}
 
 	room.Add(client)
 
+	room.Broadcast(protocol.Message{
+		Type:    "system",
+		Message: client.Username() + " joined the room",
+	}, client)
+
 	return nil
 }
-func (s *Server) FindOrCreateRoom(name string) *Room {
+
+func (s *Server) FindOrCreateRoom(name string) (*Room, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	new := false
 
 	_, ok := s.rooms[name]
 	if !ok {
@@ -34,9 +65,11 @@ func (s *Server) FindOrCreateRoom(name string) *Room {
 			clients:   make(map[string]*Client),
 			operators: make(map[string]struct{}),
 		}
+
+		new = true
 	}
 
-	return s.rooms[name]
+	return s.rooms[name], new
 }
 
 func (r *Room) Remove(client *Client) {
@@ -118,4 +151,18 @@ func (r *Room) Has(client *Client) bool {
 
 	_, ok := r.clients[client.Username()]
 	return ok
+}
+
+func (r *Room) Topic() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.topic
+}
+
+func (r *Room) SetTopic(topic string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.topic = topic
 }

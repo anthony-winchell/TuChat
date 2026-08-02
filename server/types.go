@@ -22,6 +22,7 @@ type Room struct {
 	mu sync.RWMutex
 
 	name    string
+	topic   string
 	clients map[string]*Client
 
 	operators map[string]struct{}

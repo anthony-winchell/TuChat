@@ -37,8 +37,19 @@ func (s *Server) commandQuit(client *Client) bool {
 
 func (s *Server) commandHelp(client *Client) bool {
 	if err := client.Send(protocol.Message{
-		Type:    "system",
-		Message: "Commands: /quit, /users, /pm <username> <message>",
+		Type: "system",
+		Message: fmt.Sprint(
+			"Commands:\n",
+			"/pm <username> <message>\n",
+			"/join <room>\n",
+			"/rooms\n",
+			"/room\n",
+			"/quit\n",
+			"/help\n",
+			"/users\n",
+			"/topic\n",
+			"/settopic <topic>\n",
+		),
 	}); err != nil {
 		log.Println(err)
 	}
@@ -118,7 +129,46 @@ func (s *Server) executeCommand(client *Client, input string) bool {
 	case "/pm":
 		return s.commandPM(client, parts)
 	case "/join":
-		return s.commandJoinRoom(client, parts[1])
+		if len(parts) < 2 {
+			if err := client.Send(protocol.Message{
+				Type:    "error",
+				Message: "Usage: /join <room>",
+			}); err != nil {
+				log.Println(err)
+			}
+			return false
+		}
+		s.commandJoinRoom(client, parts[1])
+		return false
+	case "/rooms":
+		return s.commandRooms(client)
+	case "/room":
+		return s.commandRoom(client)
+	case "/rename":
+		if len(parts) < 2 {
+			if err := client.Send(protocol.Message{
+				Type:    "error",
+				Message: "Usage: /rename <room>",
+			}); err != nil {
+				log.Println(err)
+			}
+			return false
+		}
+		return s.commandRenameRoom(parts[1], client)
+	case "/topic":
+		return s.commandTopic(client)
+	case "/settopic":
+		if len(parts) < 2 {
+			if err := client.Send(protocol.Message{
+				Type:    "error",
+				Message: "Usage: /settopic <topic>",
+			}); err != nil {
+				log.Println(err)
+			}
+			return false
+		}
+		topic := strings.Join(parts[1:], " ")
+		return s.commandSetTopic(client, topic)
 	default:
 		if err := client.Send(protocol.Message{
 			Type:    "error",
@@ -164,6 +214,60 @@ func (s *Server) commandRooms(client *Client) bool {
 			log.Println(err)
 		}
 	}
+
+	return false
+}
+
+func (s *Server) commandRoom(client *Client) bool {
+
+	room := client.Room()
+
+	client.Send(protocol.Message{
+		Type:    "system",
+		Message: "Current Room: " + room.Name(),
+	})
+
+	return false
+}
+
+func (s *Server) commandRenameRoom(name string, client *Client) bool {
+
+	room := client.Room()
+
+	if !s.RenameRoom(room, name) {
+		if err := client.Send(protocol.Message{
+			Type:    "error",
+			Message: "Room already exists",
+		}); err != nil {
+			log.Println(err)
+		}
+	}
+
+	return false
+}
+
+func (s *Server) commandTopic(client *Client) bool {
+	room := client.Room()
+
+	if err := client.Send(protocol.Message{
+		Type:    "system",
+		Message: "Topic: " + room.Topic(),
+	}); err != nil {
+		log.Println(err)
+	}
+
+	return false
+}
+
+func (s *Server) commandSetTopic(client *Client, topic string) bool {
+	room := client.Room()
+
+	room.SetTopic(topic)
+
+	room.Broadcast(protocol.Message{
+		Type:    "system",
+		Message: "Topic set to: " + topic,
+	}, nil)
 
 	return false
 }
