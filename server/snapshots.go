@@ -5,8 +5,8 @@ import(
 )
 
 func (s *Server) roomSnapshot(room *Room) []*Client {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
+	room.mu.RLock()
+	defer room.mu.RUnlock()
 
 	clients := make([]*Client, 0, len(room.clients))
 

@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"log"
+	"strings"
 	"tuchat/protocol"
 )
 
@@ -17,8 +18,8 @@ func (s *Server) JoinRoom(client *Client, roomName string) error {
 
 	oldRoom := client.Room()
 
-	if client.Room() != nil {
-		client.Room().Remove(client)
+	if oldRoom != nil {
+		oldRoom.Remove(client)
 
 		oldRoom.Broadcast(protocol.Message{
 			Type:    "system",
@@ -35,14 +36,18 @@ func (s *Server) JoinRoom(client *Client, roomName string) error {
 		}
 	}
 
+	room.Add(client)
+
+	if new {
+		room.AddOperator(client)
+	}
+
 	if err := client.Send(protocol.Message{
 		Type:    "system",
 		Message: "Joined room: " + roomName,
 	}); err != nil {
 		log.Println(err)
 	}
-
-	room.Add(client)
 
 	room.Broadcast(protocol.Message{
 		Type:    "system",
@@ -55,6 +60,8 @@ func (s *Server) JoinRoom(client *Client, roomName string) error {
 func (s *Server) FindOrCreateRoom(name string) (*Room, bool) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+
+	name = strings.TrimSpace(name)
 
 	new := false
 
@@ -78,6 +85,7 @@ func (r *Room) Remove(client *Client) {
 	defer r.mu.Unlock()
 
 	delete(r.clients, client.Username())
+	delete(r.operators, client.Username())
 
 	client.mu.Lock()
 	client.room = nil
@@ -165,4 +173,80 @@ func (r *Room) SetTopic(topic string) {
 	defer r.mu.Unlock()
 
 	r.topic = topic
+}
+
+func (r *Room) Operators() []*Client {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	clients := make([]*Client, 0, len(r.operators))
+
+	for username := range r.operators {
+		if client, ok := r.clients[username]; ok {
+			clients = append(clients, client)
+		}
+	}
+
+	return clients
+}
+
+func (r *Room) AddOperator(client *Client) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.operators[client.Username()] = struct{}{}
+}
+
+func (r *Room) RemoveOperator(client *Client) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	delete(r.operators, client.Username())
+}
+
+func (r *Room) RequireOperator(client *Client) error {
+
+	if r.Name() == "general" {
+		return errors.New("general is the default room and cannot be modified")
+	}
+
+	if !r.IsOperator(client.Username()) {
+		return errors.New("operator permissions required")
+	}
+
+	return nil
+}
+
+func (r *Room) Promote(client *Client) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.clients[client.Username()]; !ok {
+		return errors.New("user not in this room")
+	}
+
+	if _, ok := r.operators[client.Username()]; ok {
+		return errors.New("user is already an operator")
+	}
+
+	r.operators[client.Username()] = struct{}{}
+
+	return nil
+}
+
+func (r *Room) Demote(client *Client) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.clients[client.Username()]; !ok {
+		return errors.New("user not in room")
+	}
+
+	if _, ok := r.operators[client.Username()]; !ok {
+		return errors.New("user is not an operator")
+	}
+
+	delete(r.operators, client.Username())
+
+	return nil
 }

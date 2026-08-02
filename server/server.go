@@ -107,9 +107,15 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	log.Printf("%s Disconnected", client.username)
 
+	room := client.Room()
+
 	s.removeClient(client)
 
 	s.leaveAlert(client)
+
+	if room != nil {
+		room.Remove(client)
+	}
 }
 
 func (s *Server) removeConnection(conn net.Conn) {
@@ -173,8 +179,6 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 		break
 	}
 	s.JoinRoom(client, "general")
-
-	s.joinAlert(client)
 
 	return client, nil
 }
@@ -264,22 +268,28 @@ func (s *Server) RoomsSnapshot() []*Room {
 	return rooms
 }
 
-func (s *Server) RenameRoom(r *Room, newName string) bool {
+func (s *Server) RenameRoom(r *Room, newName string)  error {
+	newName = strings.TrimSpace(newName)
+
+	if newName == "" {
+		return errors.New("room name cannot be empty")
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
 	if _, exists := s.rooms[newName]; exists {
-		return false
+		return errors.New("room exists")
 	}
 
-	oldName := r.name
-
 	r.mu.Lock()
-	r.name = newName
-	r.mu.Unlock()
+	defer r.mu.Unlock()
 
-	delete(s.rooms, oldName)
+	delete(s.rooms, r.name)
+
+	r.name = newName
+
 	s.rooms[newName] = r
 
-	return true
+	return nil
 }

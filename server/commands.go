@@ -168,7 +168,33 @@ func (s *Server) executeCommand(client *Client, input string) bool {
 			return false
 		}
 		topic := strings.Join(parts[1:], " ")
-		return s.commandSetTopic(client, topic)
+		s.commandSetTopic(client, topic)
+		return false
+
+	case "/promote":
+		if len(parts) < 2 {
+			if err := client.Send(protocol.Message{
+				Type:    "error",
+				Message: "Usage: /promote <username>",
+			}); err != nil {
+				log.Println(err)
+			}
+			return false
+		}
+		s.commandPromote(client, parts[1])
+		return false
+	case "/demote":
+		if len(parts) < 2 {
+			if err := client.Send(protocol.Message{
+				Type:    "error",
+				Message: "Usage: /demote <username>",
+			}); err != nil {
+				log.Println(err)
+			}
+			return false
+		}
+		s.commandDemote(client, parts[1])
+		return false
 	default:
 		if err := client.Send(protocol.Message{
 			Type:    "error",
@@ -221,11 +247,28 @@ func (s *Server) commandRooms(client *Client) bool {
 func (s *Server) commandRoom(client *Client) bool {
 
 	room := client.Room()
-
-	client.Send(protocol.Message{
+	 
+	if err := client.Send(protocol.Message{
 		Type:    "system",
 		Message: "Current Room: " + room.Name(),
-	})
+	}); err != nil {
+		log.Println(err)
+	}
+
+	if err := client.Send(protocol.Message{
+		Type:    "system",
+		Message: "Topic: " + room.Topic(),
+	}); err != nil {
+		log.Println(err)
+	}
+
+	if err := client.Send(protocol.Message{
+		Type: "system",
+		Message: fmt.Sprintf("Users: %d", room.Size()),
+	}); err != nil {
+		log.Println(err)
+	}
+	
 
 	return false
 }
@@ -234,15 +277,26 @@ func (s *Server) commandRenameRoom(name string, client *Client) bool {
 
 	room := client.Room()
 
-	if !s.RenameRoom(room, name) {
+	if err := room.RequireOperator(client); err != nil {
 		if err := client.Send(protocol.Message{
-			Type:    "error",
-			Message: "Room already exists",
+			Type: "system",
+			Message: err.Error(),
 		}); err != nil {
 			log.Println(err)
 		}
+	
+		return false
 	}
 
+	if err := s.RenameRoom(room, name); err != nil {
+		if err := client.Send(protocol.Message{
+			Type: "system",
+			Message: err.Error(),
+		}); err != nil {
+			log.Println(err)
+		}
+		return false
+	}
 	return false
 }
 
@@ -259,14 +313,110 @@ func (s *Server) commandTopic(client *Client) bool {
 	return false
 }
 
-func (s *Server) commandSetTopic(client *Client, topic string) bool {
+func (s *Server) commandSetTopic(client *Client, topic string)  {
 	room := client.Room()
+
+	if err := room.RequireOperator(client); err != nil {
+		if err := client.Send(protocol.Message{
+			Type:    "error",
+			Message: err.Error(),
+		}); err != nil {
+			log.Println(err)
+		}
+		return
+	}
 
 	room.SetTopic(topic)
 
 	room.Broadcast(protocol.Message{
-		Type:    "system",
-		Message: "Topic set to: " + topic,
+		Type: "system",
+		Message: client.Username() + " changed the topic to: " + topic,
+
+	}, nil)
+}
+
+func (s *Server) commandPromote(client *Client, targetUsername string) bool {
+
+	target := s.findClient(targetUsername)
+
+	if target == nil {
+		if err := client.Send(protocol.Message{
+			Type:    "error",
+			Message: "User not found: " + targetUsername,
+		}); err != nil {
+			log.Println(err)
+		}
+		return false
+	}
+
+	room := client.Room()
+
+	if err := room.RequireOperator(client); err != nil {
+		if err := client.Send(protocol.Message{
+			Type:    "error",
+			Message: err.Error(),
+		}); err != nil {
+			log.Println(err)
+		}
+		return false
+	}
+
+	if err := room.Promote(target); err != nil {
+		if err := client.Send(protocol.Message{
+			Type:    "error",
+			Message: err.Error(),
+		}); err != nil {
+			log.Println(err)
+		}
+		return false
+	}
+
+	room.Broadcast(protocol.Message{
+		Type: "system",
+		Message: client.Username() + " promoted " + target.Username() + " to operator",
+	}, nil)
+
+	return false
+}
+
+func (s *Server) commandDemote(client *Client, targetUsername string) bool {
+
+	target := s.findClient(targetUsername)
+	if target == nil {
+		if err := client.Send(protocol.Message{
+			Type:    "error",
+			Message: "User not found: " + targetUsername,
+		}); err != nil {
+			log.Println(err)
+		}
+		return false
+	}
+
+	room := client.Room()
+
+	if err := room.RequireOperator(client); err != nil {
+		if err := client.Send(protocol.Message{
+			Type:    "error",
+			Message: err.Error(),
+		}); err != nil {
+			log.Println(err)
+		}
+		return false
+	}
+
+	if err := room.Demote(target); err != nil {
+		if err := client.Send(protocol.Message{
+			Type:    "error",
+			Message: err.Error(),
+		}); err != nil {
+			log.Println(err)
+		}
+		return false
+	}
+
+	room.Broadcast(protocol.Message{
+		Type: "system",
+		Message: client.Username() + " demoted " + target.Username() + " to user",
 	}, nil)
 
 	return false
