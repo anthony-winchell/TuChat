@@ -5,15 +5,21 @@ import (
 	"log"
 	"strings"
 	"tuchat/protocol"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 var ErrAlreadyInRoom = errors.New("already in room")
 
-func (s *Server) JoinRoom(client *Client, roomName string) error {
+func (s *Server) JoinRoom(client *Client, roomName string, password string) error {
 	room, new := s.FindOrCreateRoom(roomName)
 
 	if client.Room() == room {
 		return ErrAlreadyInRoom
+	}
+
+	if !room.CheckPassword(password) {
+		return errors.New("incorrect password")
 	}
 
 	oldRoom := client.Room()
@@ -249,4 +255,41 @@ func (r *Room) Demote(client *Client) error {
 	delete(r.operators, client.Username())
 
 	return nil
+}
+
+func (r *Room) SetPassword(password string) error {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	if password == "" {
+		r.password = ""
+		return nil
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err 
+	}
+
+	r.password = string(hash)
+
+	return nil
+}
+
+func (r *Room) HasPassword() bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.password != ""
+}
+
+func (r *Room) CheckPassword(password string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	if r.password == "" {
+		return true
+	}
+
+	return bcrypt.CompareHashAndPassword([]byte(r.password), []byte(password)) == nil
 }

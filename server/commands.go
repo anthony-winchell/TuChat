@@ -49,6 +49,7 @@ func (s *Server) commandHelp(client *Client) bool {
 			"/users\n",
 			"/topic\n",
 			"/settopic <topic>\n",
+			"/setpassword <password>\n",
 		),
 	}); err != nil {
 		log.Println(err)
@@ -132,13 +133,19 @@ func (s *Server) executeCommand(client *Client, input string) bool {
 		if len(parts) < 2 {
 			if err := client.Send(protocol.Message{
 				Type:    "error",
-				Message: "Usage: /join <room>",
+				Message: "Usage: /join <room> [password]",
 			}); err != nil {
 				log.Println(err)
 			}
 			return false
 		}
-		s.commandJoinRoom(client, parts[1])
+
+		password := ""
+
+		if len(parts) >= 3 {
+			password = strings.Join(parts[2:], " ") 
+		}
+		s.commandJoinRoom(client, parts[1], password)
 		return false
 	case "/rooms":
 		return s.commandRooms(client)
@@ -195,6 +202,16 @@ func (s *Server) executeCommand(client *Client, input string) bool {
 		}
 		s.commandDemote(client, parts[1])
 		return false
+
+	case "/setpassword": 
+		password := ""
+
+		if len(parts) >= 2 {
+			password = strings.Join(parts[1:], " ")
+		}
+
+		return s.commandSetPassword(client, password)
+		
 	default:
 		if err := client.Send(protocol.Message{
 			Type:    "error",
@@ -206,8 +223,8 @@ func (s *Server) executeCommand(client *Client, input string) bool {
 	}
 }
 
-func (s *Server) commandJoinRoom(client *Client, roomName string) bool {
-	if err := s.JoinRoom(client, roomName); err != nil {
+func (s *Server) commandJoinRoom(client *Client, roomName string, password string) bool {
+	if err := s.JoinRoom(client, roomName, password); err != nil {
 		if err := client.Send(protocol.Message{
 			Type:    "error",
 			Message: err.Error(),
@@ -418,6 +435,37 @@ func (s *Server) commandDemote(client *Client, targetUsername string) bool {
 		Type: "system",
 		Message: client.Username() + " demoted " + target.Username() + " to user",
 	}, nil)
+
+	return false
+}
+
+func (s *Server) commandSetPassword(client *Client, password string) bool {
+	room := client.Room()
+
+	if err := room.RequireOperator(client); err != nil {
+		if err := client.Send(protocol.Message{
+			Type: "error",
+			Message: err.Error(),
+		}); err != nil {
+			log.Println(err)
+		}
+		return false
+	}
+
+	if err := room.SetPassword(password); err != nil {
+		if err := client.Send(protocol.Message{
+			Type: "error",
+			Message: err.Error(),
+		}); err != nil {
+			log.Println(err)
+		}
+		return false
+	} else {
+		room.Broadcast(protocol.Message{
+			Type: "system",
+			Message: client.Username() + " set a password",
+		}, nil)
+	}
 
 	return false
 }

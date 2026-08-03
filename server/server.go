@@ -178,7 +178,7 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 
 		break
 	}
-	s.JoinRoom(client, "general")
+	s.JoinRoom(client, "general", "")
 
 	return client, nil
 }
