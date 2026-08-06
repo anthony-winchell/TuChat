@@ -26,14 +26,21 @@ func main() {
 		conns:    make(map[net.Conn]struct{}),
 		rooms:    make(map[string]*Room),
 	}
-	server.rooms["general"] = &Room{
-		name:    "general",
-		clients: make(map[string]*Client),
+	
+	if err := server.loadConfig(); err != nil {
+		log.Println("No config found. Creating defaults...")
+		createDefaultState(server)
+		server.configureName()
+
+		if err := server.SaveConfig(); err != nil {
+			log.Println(err)
+		}
+	} else {
+		log.Println("Config found. Server name: " + server.Name())
+
 	}
 
-	server.configureName()
-
-	log.Println("Starting Server...")
+	log.Println("Starting Server... ")
 	go server.Start()
 
 	signals := make(chan os.Signal, 1)
@@ -42,6 +49,14 @@ func main() {
 
 	<-signals
 
+	server.SaveConfig()
+
 	server.Shutdown()
 
+}
+
+
+func createDefaultState(server *Server) {
+	server.SetName("TuChat")
+	server.AddRoom(NewRoom("general"))
 }

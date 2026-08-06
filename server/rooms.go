@@ -46,6 +46,9 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 
 	if new {
 		room.AddOperator(client)
+		if err := s.SaveConfig(); err != nil {
+			log.Println("Failed to save config: " + err.Error())
+		}
 	}
 
 	if err := client.Send(protocol.Message{
@@ -292,4 +295,25 @@ func (r *Room) CheckPassword(password string) bool {
 	}
 
 	return bcrypt.CompareHashAndPassword([]byte(r.password), []byte(password)) == nil
+}
+
+func (r *Room) PasswordHash() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.password
+}
+
+func NewRoom(name string) *Room {
+	return &Room{
+		name: 			name,
+		clients: 		make(map[string]*Client),
+		operators: 	make(map[string]struct{}),
+	}
+}
+
+func (r *Room) RestorePasswordHash(hash string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.password = hash
 }

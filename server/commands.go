@@ -314,6 +314,9 @@ func (s *Server) commandRenameRoom(name string, client *Client) bool {
 		}
 		return false
 	}
+	if err := s.SaveConfig(); err != nil {
+		log.Println("Failed to save config: " + err.Error())
+	}
 	return false
 }
 
@@ -344,6 +347,9 @@ func (s *Server) commandSetTopic(client *Client, topic string)  {
 	}
 
 	room.SetTopic(topic)
+	if err := s.SaveConfig(); err != nil {
+		log.Println("Failed to save config: " + err.Error())
+	}
 
 	room.Broadcast(protocol.Message{
 		Type: "system",
@@ -461,6 +467,9 @@ func (s *Server) commandSetPassword(client *Client, password string) bool {
 		}
 		return false
 	} else {
+		if err := s.SaveConfig(); err != nil {
+			log.Println("Failed to save config: " + err.Error())
+		}
 		room.Broadcast(protocol.Message{
 			Type: "system",
 			Message: client.Username() + " set a password",

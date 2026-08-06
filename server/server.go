@@ -293,3 +293,24 @@ func (s *Server) RenameRoom(r *Room, newName string)  error {
 
 	return nil
 }
+
+func (s *Server) Name() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.name
+}
+
+func (s *Server) SetName(name string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.name = name
+}
+
+func (s *Server) AddRoom(room *Room) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.rooms[room.Name()] = room
+}
