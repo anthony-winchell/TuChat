@@ -27,8 +27,16 @@ func (c *Client) Room() *Room {
 	return c.room
 }
 
-func (c *Client) Username() string {
+func (c *Client) User() *User {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	return c.username
+
+	return c.user
+}
+
+func (c *Client) SetUser(user *User) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.user = user
 }

@@ -25,7 +25,7 @@ func main() {
 
 	terminalReader := bufio.NewReader(os.Stdin)
 
-	if err := setUsername(decoder, encoder, terminalReader); err != nil {
+	if err := authenticate(decoder, encoder, terminalReader); err != nil {
 		log.Println(err)
 		return
 	}
@@ -68,6 +68,8 @@ func receiveMessages(decoder *json.Decoder) {
 		case "users":
 			renderUsers(message.Users)
 		case "welcome":
+			fmt.Println(message.Message)
+		case "auth_prompt":
 			fmt.Println(message.Message)
 		case "join":
 			fmt.Printf("%s joined the chat\n", message.Username)
@@ -113,31 +115,75 @@ func sendMessages(encoder *json.Encoder, terminalReader *bufio.Reader) {
 }
 
 // after connecting to the server, the client will be prompted to enter a username
-func setUsername(decoder *json.Decoder, encoder *json.Encoder, terminalReader *bufio.Reader) error {
-	var message protocol.Message
+func authenticate(decoder *json.Decoder, encoder *json.Encoder, terminalReader *bufio.Reader) error {
 	for {
+		var message protocol.Message
+
 		if err := decoder.Decode(&message); err != nil {
 			return err
 		}
 
 		switch message.Type {
-		case "username_prompt":
+
+		case "auth_prompt":
 			fmt.Println(message.Message)
+
+			fmt.Println("1. Login")
+			fmt.Println("2. Register")
+
+			fmt.Print("> ")
+
+			choice, err := terminalReader.ReadString('\n')
+			if err != nil {
+				return err
+			}
+
+			choice = strings.TrimSpace(choice)
+
+			fmt.Print("Username: ")
 
 			username, err := terminalReader.ReadString('\n')
 			if err != nil {
 				return err
 			}
 
+			fmt.Print("Password: ")
+
+			password, err := terminalReader.ReadString('\n')
+			if err != nil {
+				return err
+			}
+
+
+			msgType := ""
+
+			switch choice {
+			case "1":
+				msgType = "login"
+
+			case "2":
+				msgType = "register"
+
+			default:
+				fmt.Println("Invalid option")
+				continue
+			}
+
+
 			if err := Send(encoder, protocol.Message{
-				Type:     "username",
+				Type:     msgType,
 				Username: strings.TrimSpace(username),
+				Password: strings.TrimSpace(password),
 			}); err != nil {
 				return err
 			}
+
+
 		case "error":
-			fmt.Println(message.Message)
-		case "username_accepted":
+			fmt.Println("Error:", message.Message)
+
+
+		case "auth_success":
 			return nil
 		}
 	}

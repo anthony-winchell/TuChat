@@ -12,7 +12,7 @@ func (s *Server) commandUsers(client *Client) bool {
 	usernames := make([]string, 0, len(users))
 
 	for _, user := range users {
-		usernames = append(usernames, user.Username())
+		usernames = append(usernames, user.User().Username())
 	}
 
 	if err := client.Send(protocol.Message{
@@ -95,7 +95,7 @@ func (s *Server) commandPM(client *Client, parts []string) bool {
 
 	if err := receiver.Send(protocol.Message{
 		Type:     "pm",
-		Username: client.username,
+		Username: client.User().Username(),
 		Target:   parts[1],
 		Message:  message,
 	}); err != nil {
@@ -104,7 +104,7 @@ func (s *Server) commandPM(client *Client, parts []string) bool {
 
 	if err := client.Send(protocol.Message{
 		Type:     "pm",
-		Username: client.username,
+		Username: client.User().Username(),
 		Target:   parts[1],
 		Message:  message,
 	}); err != nil {
@@ -353,7 +353,7 @@ func (s *Server) commandSetTopic(client *Client, topic string)  {
 
 	room.Broadcast(protocol.Message{
 		Type: "system",
-		Message: client.Username() + " changed the topic to: " + topic,
+		Message: client.User().Username() + " changed the topic to: " + topic,
 
 	}, nil)
 }
@@ -396,7 +396,7 @@ func (s *Server) commandPromote(client *Client, targetUsername string) bool {
 
 	room.Broadcast(protocol.Message{
 		Type: "system",
-		Message: client.Username() + " promoted " + target.Username() + " to operator",
+		Message: client.User().Username() + " promoted " + target.User().Username() + " to operator",
 	}, nil)
 
 	return false
@@ -439,7 +439,7 @@ func (s *Server) commandDemote(client *Client, targetUsername string) bool {
 
 	room.Broadcast(protocol.Message{
 		Type: "system",
-		Message: client.Username() + " demoted " + target.Username() + " to user",
+		Message: client.User().Username() + " demoted " + target.User().Username() + " to user",
 	}, nil)
 
 	return false
@@ -472,7 +472,7 @@ func (s *Server) commandSetPassword(client *Client, password string) bool {
 		}
 		room.Broadcast(protocol.Message{
 			Type: "system",
-			Message: client.Username() + " set a password",
+			Message: client.User().Username() + " set a password",
 		}, nil)
 	}
 

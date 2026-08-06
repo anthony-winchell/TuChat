@@ -42,3 +42,14 @@ func (s *Server) connSnapshot() []net.Conn {
 	return conns
 }
 
+func (s *Server) usersSnapshot() []*User {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	users := make([]*User, 0, len(s.users))
+
+	for _, user := range s.users {
+		users = append(users, user)
+	}
+	return users
+}

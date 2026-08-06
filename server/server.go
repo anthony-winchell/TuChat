@@ -40,7 +40,7 @@ func (s *Server) sendWelcome(client *Client) {
 			"%s\nWelcome to %s, %s!\n\nType /help for commands.\n%s",
 			strings.Repeat("=", 35),
 			s.name,
-			client.username,
+			client.User().Username(),
 			strings.Repeat("=", 35),
 		),
 	}); err != nil {
@@ -101,11 +101,11 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	s.sendWelcome(client)
 
-	log.Printf("%s Connected", client.username)
+	log.Printf("%s Connected", client.User().Username())
 
 	s.handleMessages(client)
 
-	log.Printf("%s Disconnected", client.username)
+	log.Printf("%s Disconnected", client.User().Username())
 
 	room := client.Room()
 
@@ -133,8 +133,8 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 	}
 
 	if err := client.Send(protocol.Message{
-		Type:    "username_prompt",
-		Message: "Choose a username:",
+		Type:    "auth_prompt",
+		Message: "Login or register",
 	}); err != nil {
 		return nil, err
 	}
@@ -146,37 +146,53 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 			return nil, err
 		}
 
-		if message.Type != "username" {
-			continue
+		switch message.Type {
+		case "register": 
+			user, err := s.RegisterUser(
+				message.Username,
+				message.Password,
+			)
+
+			if err != nil {
+				client.Send(protocol.Message{
+					Type: "error",
+					Message: err.Error(),
+				})
+				continue
+			}
+
+			client.SetUser(user)
+		
+		case "login":
+			user, err := s.AuthenticateUser(message.Username, message.Password)
+
+			if err != nil {
+				client.Send(protocol.Message{
+					Type: "error",
+					Message: err.Error(),
+				})
+				continue
+			}
+
+			client.SetUser(user)
 		}
 
-		client.username = strings.TrimSpace(message.Username)
 
-		err := s.addClient(client)
-
-		if err != nil {
+		if client.User() != nil {
+			if err := s.addClient(client); err != nil {
+				client.Send(protocol.Message{
+					Type:    "error",
+					Message: err.Error(),
+				})
+				continue
+			}
 			if err := client.Send(protocol.Message{
-				Type:    "error",
-				Message: err.Error(),
+				Type: "auth_success",
 			}); err != nil {
 				return nil, err
 			}
-			if err := client.Send(protocol.Message{
-				Type:    "username_prompt",
-				Message: "Choose a username:",
-			}); err != nil {
-				return nil, err
-			}
-			continue
+			break
 		}
-
-		if err := client.Send(protocol.Message{
-			Type: "username_accepted",
-		}); err != nil {
-			return nil, err
-		}
-
-		break
 	}
 	s.JoinRoom(client, "general", "")
 
@@ -184,22 +200,22 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 }
 
 func (s *Server) addClient(client *Client) error {
-	if strings.ContainsRune(client.username, ':') {
+	if strings.ContainsRune(client.User().Username(), ':') {
 		return ErrUsernameFormat
 	}
 
-	if len(client.username) < 3 || len(client.username) > 13 {
+	if len(client.User().Username()) < 3 || len(client.User().Username()) > 13 {
 		return ErrUsernameFormat
 	}
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, exists := s.clients[client.username]; exists {
+	if _, exists := s.clients[client.User().Username()]; exists {
 		return ErrUsernameTaken
 	}
 
-	s.clients[client.username] = client
+	s.clients[client.User().Username()] = client
 
 	return nil
 }
@@ -208,7 +224,7 @@ func (s *Server) removeClient(client *Client) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	delete(s.clients, client.username)
+	delete(s.clients, client.User().Username())
 }
 
 func (s *Server) findClient(username string) *Client {
@@ -308,9 +324,88 @@ func (s *Server) SetName(name string) {
 	s.name = name
 }
 
-func (s *Server) AddRoom(room *Room) {
+func (s *Server) AddRoom(room *Room) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	if _, exists := s.rooms[room.Name()]; exists { return errors.New("room exists") }
+
 	s.rooms[room.Name()] = room
+
+	return nil
+}
+ 
+func (s *Server) AddUser(user *User) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, exists := s.users[user.Username()]; exists {
+		return ErrUsernameTaken
+	}
+
+	s.users[user.Username()] = user
+
+	return nil
+}
+
+func (s *Server) FindUser(username string) (*User, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	if _, exists := s.users[username]; !exists {
+		return nil, ErrUserNotFound
+	}
+	return s.users[username], nil
+
+}
+
+func (s *Server) RegisterUser(username string, password string) (*User,error) {
+
+	if err := ValidateUsername(username); err != nil {
+		return nil, err
+	}
+
+	user, err := NewUser(username, password)
+		if err != nil {
+			return nil, err
+		}
+
+		if err := s.AddUser(user); err != nil {
+			return nil, err
+		}
+
+		if err := s.SaveConfig(); err != nil {
+			log.Println("Failed to save config: " + err.Error())
+		}
+
+		return user, nil
+}
+
+func (s *Server) AuthenticateUser(username string, password string) (*User, error) {
+	user, err := s.FindUser(username)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := user.CheckPassword(password); err != nil {
+		return nil, errors.New("invalid password")
+	}
+
+	return user, nil
+}
+
+func ValidateUsername(username string) error {
+	if username == "" {
+		return errors.New("username cannot be empty")
+	}
+
+	if len(username) < 3 || len(username) > 13 {
+		return ErrUsernameFormat
+	}
+
+	if strings.Contains(username, ":") {
+		return ErrUsernameFormat
+	}
+
+	return nil
 }

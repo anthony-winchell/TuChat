@@ -10,7 +10,7 @@ import (
 
 var ErrUsernameTaken = errors.New("Username already taken")
 var ErrUsernameFormat = errors.New(`Username cannot contain ':'. Must be between 3 and 13 characters long`)
-
+var ErrUserNotFound = errors.New("User not found")
 
 func main() {
 	listener, err := net.Listen("tcp", ":8080")
@@ -23,6 +23,7 @@ func main() {
 		name:     "TuChat",
 		listener: listener,
 		clients:  make(map[string]*Client),
+		users:    make(map[string]*User),
 		conns:    make(map[net.Conn]struct{}),
 		rooms:    make(map[string]*Room),
 	}

@@ -8,7 +8,8 @@ import (
 
 type Client struct {
 	conn     	net.Conn
-	username 	string
+
+	user      *User
 
 	decoder 	*json.Decoder
 	encoder 	*json.Encoder
@@ -16,6 +17,12 @@ type Client struct {
 	mu      	sync.RWMutex
 
 	room 			*Room
+}
+
+type User struct {
+	mu 						sync.RWMutex
+	username 			string 
+	passwordHash 	string
 }
 
 type Room struct {
@@ -37,6 +44,8 @@ type Server struct {
 
 	clients 	map[string]*Client
 	conns   	map[net.Conn]struct{}
+
+	users 		map[string]*User
 
 	rooms 		map[string]*Room
 

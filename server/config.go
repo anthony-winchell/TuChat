@@ -8,9 +8,13 @@ import (
 type Config struct {
 	ServerName 	string `json:"server_name"`
 	Rooms      	[]RoomConfig `json:"rooms"`
-	
+	Users      	[]UserConfig `json:"users"`
 }
 
+type UserConfig struct {
+	Username 	string `json:"username"`
+	PasswordHash string `json:"password_hash"`
+}
 
 type RoomConfig struct {
 	Name     		 	string `json:"name"`
@@ -23,6 +27,13 @@ func (s *Server) SaveConfig() error {
 		ServerName: s.Name(),
 	}
 
+	for _, user := range s.usersSnapshot() {
+		config.Users = append(config.Users, UserConfig{
+			Username: user.Username(),
+			PasswordHash: user.PasswordHash(),
+		})
+	}
+	
 	for _, room := range s.RoomsSnapshot() {
 		config.Rooms = append(config.Rooms, RoomConfig{
 			Name:      		room.Name(),
@@ -60,7 +71,16 @@ func (s *Server) loadConfig() error {
 		room.SetTopic(roomConfig.Topic)
 		room.RestorePasswordHash(roomConfig.PasswordHash)
 
-		s.AddRoom(room)
+		if err := s.AddRoom(room); err != nil {
+			return err
+		}
+	}
+
+	for _, userConfig := range config.Users {
+		user := RestoreUser(userConfig.Username, userConfig.PasswordHash)
+		if err := s.AddUser(user); err != nil {
+			return err
+		}
 	}
 
 	return nil 

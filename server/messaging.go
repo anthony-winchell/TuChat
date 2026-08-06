@@ -20,7 +20,7 @@ func (s *Server) sendToAll(message protocol.Message, except *Client) {
 func (s *Server) broadcastMessage(text string, sender *Client) {
 	sender.Room().Broadcast(protocol.Message{
 		Type:    "chat",
-		Username: sender.Username(),
+		Username: sender.User().Username(),
 		Message: text,
 	}, sender)
 }
@@ -28,6 +28,6 @@ func (s *Server) broadcastMessage(text string, sender *Client) {
 func (s *Server) leaveAlert(leaver *Client) {
 	leaver.Room().Broadcast(protocol.Message{
 		Type:     "leave",
-		Username: leaver.username,
+		Username: leaver.User().Username(),
 	}, leaver)
 }

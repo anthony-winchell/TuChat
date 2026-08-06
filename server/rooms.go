@@ -29,7 +29,7 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 
 		oldRoom.Broadcast(protocol.Message{
 			Type:    "system",
-			Message: client.Username() + " left the room",
+			Message: client.User().Username() + " left the room",
 		}, client)
 	}
 
@@ -60,7 +60,7 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 
 	room.Broadcast(protocol.Message{
 		Type:    "system",
-		Message: client.Username() + " joined the room",
+		Message: client.User().Username() + " joined the room",
 	}, client)
 
 	return nil
@@ -93,8 +93,8 @@ func (r *Room) Remove(client *Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	delete(r.clients, client.Username())
-	delete(r.operators, client.Username())
+	delete(r.clients, client.User().Username())
+	delete(r.operators, client.User().Username())
 
 	client.mu.Lock()
 	client.room = nil
@@ -106,7 +106,7 @@ func (r *Room) Add(client *Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.clients[client.Username()] = client
+	r.clients[client.User().Username()] = client
 
 	client.mu.Lock()
 	client.room = r
@@ -166,7 +166,7 @@ func (r *Room) Has(client *Client) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	_, ok := r.clients[client.Username()]
+	_, ok := r.clients[client.User().Username()]
 	return ok
 }
 
@@ -203,14 +203,14 @@ func (r *Room) AddOperator(client *Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.operators[client.Username()] = struct{}{}
+	r.operators[client.User().Username()] = struct{}{}
 }
 
 func (r *Room) RemoveOperator(client *Client) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	delete(r.operators, client.Username())
+	delete(r.operators, client.User().Username())
 }
 
 func (r *Room) RequireOperator(client *Client) error {
@@ -219,7 +219,7 @@ func (r *Room) RequireOperator(client *Client) error {
 		return errors.New("general is the default room and cannot be modified")
 	}
 
-	if !r.IsOperator(client.Username()) {
+	if !r.IsOperator(client.User().Username()) {
 		return errors.New("operator permissions required")
 	}
 
@@ -230,15 +230,15 @@ func (r *Room) Promote(client *Client) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, ok := r.clients[client.Username()]; !ok {
+	if _, ok := r.clients[client.User().Username()]; !ok {
 		return errors.New("user not in this room")
 	}
 
-	if _, ok := r.operators[client.Username()]; ok {
+	if _, ok := r.operators[client.User().Username()]; ok {
 		return errors.New("user is already an operator")
 	}
 
-	r.operators[client.Username()] = struct{}{}
+	r.operators[client.User().Username()] = struct{}{}
 
 	return nil
 }
@@ -247,15 +247,15 @@ func (r *Room) Demote(client *Client) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	if _, ok := r.clients[client.Username()]; !ok {
+	if _, ok := r.clients[client.User().Username()]; !ok {
 		return errors.New("user not in room")
 	}
 
-	if _, ok := r.operators[client.Username()]; !ok {
+	if _, ok := r.operators[client.User().Username()]; !ok {
 		return errors.New("user is not an operator")
 	}
 
-	delete(r.operators, client.Username())
+	delete(r.operators, client.User().Username())
 
 	return nil
 }
