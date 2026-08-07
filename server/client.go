@@ -40,3 +40,10 @@ func (c *Client) SetUser(user *User) {
 
 	c.user = user
 }
+
+func (c *Client) SetRoom(room *Room) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.room = room
+}

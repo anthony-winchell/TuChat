@@ -27,6 +27,8 @@ func main() {
 		conns:    make(map[net.Conn]struct{}),
 		rooms:    make(map[string]*Room),
 	}
+
+	server.InitializeCommands()
 	
 	if err := server.loadConfig(); err != nil {
 		log.Println("No config found. Creating defaults...")

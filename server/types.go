@@ -51,5 +51,7 @@ type Server struct {
 
 	rooms 		map[string]*Room
 
+	commands 	map[string]Command
+
 	wg 				sync.WaitGroup
 }

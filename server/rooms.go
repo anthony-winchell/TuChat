@@ -98,7 +98,6 @@ func (r *Room) Remove(client *Client) {
 	client.mu.Lock()
 	client.room = nil
 	client.mu.Unlock()
-
 }
 
 func (r *Room) Add(client *Client) {
@@ -243,6 +242,16 @@ func (r *Room) RequireOwner(client *Client) error {
 	if client.User().Username() != r.owner {
 		return errors.New("owner permissions required")
 	}
+
+	return nil
+}
+
+func (r *Room) KickUser(client *Client) error {
+	r.Remove(client)
+
+	r.mu.Lock()
+	delete(r.admins, client.User().Username())
+	r.mu.Unlock()
 
 	return nil
 }
