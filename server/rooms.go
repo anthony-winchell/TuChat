@@ -45,7 +45,7 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 	room.Add(client)
 
 	if new {
-		room.AddOperator(client)
+		room.SetOwner(client.User().Username())
 		if err := s.SaveConfig(); err != nil {
 			log.Println("Failed to save config: " + err.Error())
 		}
@@ -79,7 +79,7 @@ func (s *Server) FindOrCreateRoom(name string) (*Room, bool) {
 		s.rooms[name] = &Room{
 			name:      name,
 			clients:   make(map[string]*Client),
-			operators: make(map[string]struct{}),
+			admins:    make(map[string]struct{}),
 		}
 
 		new = true
@@ -94,7 +94,6 @@ func (r *Room) Remove(client *Client) {
 	defer r.mu.Unlock()
 
 	delete(r.clients, client.User().Username())
-	delete(r.operators, client.User().Username())
 
 	client.mu.Lock()
 	client.room = nil
@@ -154,12 +153,16 @@ func (r *Room) Size() int {
 	return len(r.clients)
 }
 
-func (r *Room) IsOperator(username string) bool {
+func (r *Room) IsAdmin(username string) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	_, ok := r.operators[username]
-	return ok
+	_, ok := r.admins[username]
+	if ok || username == r.owner {
+		return true
+	}
+
+	return false
 }
 
 func (r *Room) Has(client *Client) bool {
@@ -184,13 +187,13 @@ func (r *Room) SetTopic(topic string) {
 	r.topic = topic
 }
 
-func (r *Room) Operators() []*Client {
+func (r *Room) Admins() []*Client {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	clients := make([]*Client, 0, len(r.operators))
+	clients := make([]*Client, 0, len(r.admins))
 
-	for username := range r.operators {
+	for username := range r.admins {
 		if client, ok := r.clients[username]; ok {
 			clients = append(clients, client)
 		}
@@ -199,34 +202,52 @@ func (r *Room) Operators() []*Client {
 	return clients
 }
 
-func (r *Room) AddOperator(client *Client) {
+func (r *Room) AdminsUsernames() []string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	usernames := make([]string, 0, len(r.admins))
+
+	for username := range r.admins {
+		usernames = append(usernames, username)
+	}
+
+	return usernames
+}
+
+func (r *Room) SetOwner(username string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.operators[client.User().Username()] = struct{}{}
+	r.owner = username
 }
 
-func (r *Room) RemoveOperator(client *Client) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	delete(r.operators, client.User().Username())
-}
-
-func (r *Room) RequireOperator(client *Client) error {
+func (r *Room) RequireAdmin(client *Client) error {
 
 	if r.Name() == "general" {
 		return errors.New("general is the default room and cannot be modified")
 	}
 
-	if !r.IsOperator(client.User().Username()) {
-		return errors.New("operator permissions required")
+	if !r.IsAdmin(client.User().Username()) {
+		return errors.New("admin permissions required")
 	}
 
 	return nil
 }
 
-func (r *Room) Promote(client *Client) error {
+func (r *Room) RequireOwner(client *Client) error {
+	if r.Name() == "general" {
+		return errors.New("general is the default room and cannot be modified")
+	}
+
+	if client.User().Username() != r.owner {
+		return errors.New("owner permissions required")
+	}
+
+	return nil
+}
+
+func (r *Room) AddAdmin(client *Client) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -234,16 +255,16 @@ func (r *Room) Promote(client *Client) error {
 		return errors.New("user not in this room")
 	}
 
-	if _, ok := r.operators[client.User().Username()]; ok {
-		return errors.New("user is already an operator")
+	if _, ok := r.admins[client.User().Username()]; ok {
+		return errors.New("user is already an admin")
 	}
 
-	r.operators[client.User().Username()] = struct{}{}
+	r.admins[client.User().Username()] = struct{}{}
 
 	return nil
 }
 
-func (r *Room) Demote(client *Client) error {
+func (r *Room) RemoveAdmin(client *Client) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -251,13 +272,24 @@ func (r *Room) Demote(client *Client) error {
 		return errors.New("user not in room")
 	}
 
-	if _, ok := r.operators[client.User().Username()]; !ok {
-		return errors.New("user is not an operator")
+	if client.User().Username() == r.owner {
+		return errors.New("cannot demote owner")
 	}
 
-	delete(r.operators, client.User().Username())
+	if _, ok := r.admins[client.User().Username()]; !ok {
+		return errors.New("user is not an admin")
+	}
+
+	delete(r.admins, client.User().Username())
 
 	return nil
+}
+
+func (r *Room) RestoreAdmin(username string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	r.admins[username] = struct{}{}
 }
 
 func (r *Room) SetPassword(password string) error {
@@ -307,7 +339,7 @@ func NewRoom(name string) *Room {
 	return &Room{
 		name: 			name,
 		clients: 		make(map[string]*Client),
-		operators: 	make(map[string]struct{}),
+		admins: 	make(map[string]struct{}),
 	}
 }
 
@@ -316,4 +348,11 @@ func (r *Room) RestorePasswordHash(hash string) {
 	defer r.mu.Unlock()
 
 	r.password = hash
+}
+
+func (r *Room) Owner() string {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.owner
 }

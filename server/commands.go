@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strings"
@@ -294,10 +295,10 @@ func (s *Server) commandRenameRoom(name string, client *Client) bool {
 
 	room := client.Room()
 
-	if err := room.RequireOperator(client); err != nil {
+	if err := room.RequireOwner(client); err != nil {
 		if err := client.Send(protocol.Message{
 			Type: "system",
-			Message: err.Error(),
+			Message: errors.New("only the owner can rename the room").Error(),
 		}); err != nil {
 			log.Println(err)
 		}
@@ -336,7 +337,7 @@ func (s *Server) commandTopic(client *Client) bool {
 func (s *Server) commandSetTopic(client *Client, topic string)  {
 	room := client.Room()
 
-	if err := room.RequireOperator(client); err != nil {
+	if err := room.RequireAdmin(client); err != nil {
 		if err := client.Send(protocol.Message{
 			Type:    "error",
 			Message: err.Error(),
@@ -374,7 +375,7 @@ func (s *Server) commandPromote(client *Client, targetUsername string) bool {
 
 	room := client.Room()
 
-	if err := room.RequireOperator(client); err != nil {
+	if err := room.RequireOwner(client); err != nil {
 		if err := client.Send(protocol.Message{
 			Type:    "error",
 			Message: err.Error(),
@@ -384,7 +385,7 @@ func (s *Server) commandPromote(client *Client, targetUsername string) bool {
 		return false
 	}
 
-	if err := room.Promote(target); err != nil {
+	if err := room.AddAdmin(target); err != nil {
 		if err := client.Send(protocol.Message{
 			Type:    "error",
 			Message: err.Error(),
@@ -417,7 +418,7 @@ func (s *Server) commandDemote(client *Client, targetUsername string) bool {
 
 	room := client.Room()
 
-	if err := room.RequireOperator(client); err != nil {
+	if err := room.RequireAdmin(client); err != nil {
 		if err := client.Send(protocol.Message{
 			Type:    "error",
 			Message: err.Error(),
@@ -427,7 +428,7 @@ func (s *Server) commandDemote(client *Client, targetUsername string) bool {
 		return false
 	}
 
-	if err := room.Demote(target); err != nil {
+	if err := room.RemoveAdmin(target); err != nil {
 		if err := client.Send(protocol.Message{
 			Type:    "error",
 			Message: err.Error(),
@@ -448,7 +449,7 @@ func (s *Server) commandDemote(client *Client, targetUsername string) bool {
 func (s *Server) commandSetPassword(client *Client, password string) bool {
 	room := client.Room()
 
-	if err := room.RequireOperator(client); err != nil {
+	if err := room.RequireOwner(client); err != nil {
 		if err := client.Send(protocol.Message{
 			Type: "error",
 			Message: err.Error(),

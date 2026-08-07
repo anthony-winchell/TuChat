@@ -30,10 +30,12 @@ type Room struct {
 
 	name    	string
 	password 	string
+
+	owner   	string
+	admins    map[string]struct{}
+
 	topic   	string
 	clients 	map[string]*Client
-
-	operators map[string]struct{}
 }
 
 type Server struct {

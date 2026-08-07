@@ -20,6 +20,8 @@ type RoomConfig struct {
 	Name     		 	string `json:"name"`
 	Topic    		 	string `json:"topic"`
 	PasswordHash 	string `json:"password_hash"`
+	Owner    		 	string `json:"owner"`
+	Admins   		 	[]string `json:"admins"`
 }
 
 func (s *Server) SaveConfig() error {
@@ -39,6 +41,8 @@ func (s *Server) SaveConfig() error {
 			Name:      		room.Name(),
 			Topic:     		room.Topic(),
 			PasswordHash: room.PasswordHash(),
+			Owner:    		room.Owner(),
+			Admins:   		room.AdminsUsernames(),
 		})
 	}
 
@@ -70,6 +74,11 @@ func (s *Server) loadConfig() error {
 		room := NewRoom(roomConfig.Name)
 		room.SetTopic(roomConfig.Topic)
 		room.RestorePasswordHash(roomConfig.PasswordHash)
+		room.SetOwner(roomConfig.Owner)
+
+		for _, username := range roomConfig.Admins {
+			room.RestoreAdmin(username)
+		}
 
 		if err := s.AddRoom(room); err != nil {
 			return err
