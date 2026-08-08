@@ -184,6 +184,7 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 					Type:    "error",
 					Message: err.Error(),
 				})
+				client.SetUser(nil)
 				continue
 			}
 			if err := client.Send(protocol.Message{
@@ -284,7 +285,7 @@ func (s *Server) RoomsSnapshot() []*Room {
 	return rooms
 }
 
-func (s *Server) RenameRoom(r *Room, newName string)  error {
+func (s *Server) RenameRoom(r *Room, newName string) error {
 	newName = strings.TrimSpace(newName)
 
 	if newName == "" {
@@ -306,6 +307,34 @@ func (s *Server) RenameRoom(r *Room, newName string)  error {
 	r.name = newName
 
 	s.rooms[newName] = r
+
+	return nil
+}
+
+func (s *Server) DeleteRoom(r *Room) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()	
+
+	if r.Name() == "general" {
+		return errors.New("the #general room cannot be deleted")
+	}
+
+	for _, client := range s.roomSnapshot(r) {
+		client.Send(protocol.Message{
+			Type: "system",
+			Message: "#" + r.Name() + " has been deleted. Moving to #general",
+		})
+
+		r.Remove(client)
+
+		general := s.rooms["general"]
+
+		general.Add(client)
+
+		client.SetRoom(general)
+	}
+
+	delete(s.rooms, r.Name())
 
 	return nil
 }

@@ -6,6 +6,7 @@ import (
 	"strconv"
 	"strings"
 	"tuchat/protocol"
+	"sort"
 )
 
 type Command struct {
@@ -40,12 +41,22 @@ func (s *Server) commandHelp(client *Client) bool {
 
 	message := "Commands:\n"
 
-	for name, command := range s.Commands() {
-		message += fmt.Sprintf("%s - %s\n   Usage: %s\n",
-		name,
-		command.Description,
-		command.Usage,
-	)
+	names := make([]string, 0, len(s.commands))
+	for name := range s.commands {
+		names = append(names, name)
+	}
+
+	sort.Strings(names)
+	
+	for _, name := range names {
+		command := s.commands[name]
+
+		message += fmt.Sprintf(
+			"%s - %s\n    Usage: %s\n",
+			name, 
+			command.Description,
+			command.Usage,
+		)
 	}
 
 	sendSystem(client, message)
@@ -174,6 +185,26 @@ func (s *Server) commandRenameRoom(name string, client *Client) bool {
 	return false
 }
 
+func (s *Server) commandDeleteRoom(client *Client) bool {
+
+	room := client.Room()
+
+	if err := room.RequireOwner(client); err != nil {
+		sendError(client, err.Error())
+		return false
+	}
+
+	if err := s.DeleteRoom(room); err != nil {
+		sendError(client, err.Error())
+		return false
+	} 
+
+	if err := s.SaveConfig(); err != nil {
+		log.Println("Failed to save config: " + err.Error())
+	}
+	return false
+}
+
 func (s *Server) commandTopic(client *Client) bool {
 	room := client.Room()
 
@@ -213,34 +244,19 @@ func (s *Server) commandAddAdmin(client *Client, targetUsername string) bool {
 	target := s.findClient(targetUsername)
 
 	if target == nil {
-		if err := client.Send(protocol.Message{
-			Type:    "error",
-			Message: "User not found: " + targetUsername,
-		}); err != nil {
-			log.Println(err)
-		}
+		sendError(client, "User not found: "+targetUsername)
 		return false
 	}
 
 	room := client.Room()
 
 	if err := room.RequireOwner(client); err != nil {
-		if err := client.Send(protocol.Message{
-			Type:    "error",
-			Message: err.Error(),
-		}); err != nil {
-			log.Println(err)
-		}
+		sendError(client, err.Error())
 		return false
 	}
 
 	if err := room.AddAdmin(target); err != nil {
-		if err := client.Send(protocol.Message{
-			Type:    "error",
-			Message: err.Error(),
-		}); err != nil {
-			log.Println(err)
-		}
+		sendError(client, err.Error())
 		return false
 	}
 
@@ -494,6 +510,14 @@ func (s *Server) InitializeCommands() {
 				return s.commandRenameRoom(args[0], c)
 			},
 			Usage: "/rename <name>",
+		},
+
+		"/delete": {
+			Description: "Deletes the room (owner only)",
+			Handler: func(s *Server, c *Client, args []string) bool {
+				return s.commandDeleteRoom(c)
+			},
+			Usage: "/delete",
 		},
 	}
 }
