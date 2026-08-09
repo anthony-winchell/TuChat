@@ -3,10 +3,10 @@ package main
 import (
 	"fmt"
 	"log"
+	"sort"
 	"strconv"
 	"strings"
 	"tuchat/protocol"
-	"sort"
 )
 
 type Command struct {
@@ -47,13 +47,13 @@ func (s *Server) commandHelp(client *Client) bool {
 	}
 
 	sort.Strings(names)
-	
+
 	for _, name := range names {
 		command := s.commands[name]
 
 		message += fmt.Sprintf(
 			"%s - %s\n    Usage: %s\n",
-			name, 
+			name,
 			command.Description,
 			command.Usage,
 		)
@@ -182,6 +182,11 @@ func (s *Server) commandRenameRoom(name string, client *Client) bool {
 	if err := s.SaveConfig(); err != nil {
 		log.Println("Failed to save config: " + err.Error())
 	}
+
+	room.Broadcast(protocol.Message{
+		Type:    "system",
+		Message: client.User().Username() + " renamed the room to " + name,
+	}, nil)
 	return false
 }
 
@@ -197,7 +202,7 @@ func (s *Server) commandDeleteRoom(client *Client) bool {
 	if err := s.DeleteRoom(room); err != nil {
 		sendError(client, err.Error())
 		return false
-	} 
+	}
 
 	if err := s.SaveConfig(); err != nil {
 		log.Println("Failed to save config: " + err.Error())
@@ -354,13 +359,51 @@ func (s *Server) commandKickUser(client *Client, targetUsername string) bool {
 		log.Println("Failed to save config: " + err.Error())
 	}
 
-	sendSystem(client, "You have been kicked from "+room.Name()+
+	sendSystem(target, "You have been kicked from "+room.Name()+
 		" by "+client.User().Username()+". You have been moved to #general")
 
 	room.Broadcast(protocol.Message{
 		Type:    "system",
 		Message: client.User().Username() + " kicked " + target.User().Username(),
 	}, nil)
+
+	return false
+}
+
+func (s *Server) commandHistory(client *Client, args []string) bool {
+	count := 20
+
+	if len(args) > 0 {
+		parsed, err := strconv.Atoi(args[0])
+		if err != nil || parsed <= 0 {
+			sendError(client, "Usage: /history [positive number] (default: 20)")
+			return false
+		}
+		if parsed > 300 {
+			sendError(client, "History limit is 300 messages")
+			return false
+		}
+		count = parsed
+	}
+	room := client.Room()
+
+	chatLog, err := s.getChatLog(room.Name())
+	if err != nil {
+		sendError(client, "Unable to access chat history")
+		log.Println(err)
+		return false
+	}
+
+	entries, err := chatLog.Recent(count)
+	if err != nil {
+		sendError(client, "Unable to access chat history")
+		log.Println(err)
+		return false
+	}
+
+	for _, entry := range entries {
+		sendSystem(client, fmt.Sprintf("%s: %s", entry.Username, entry.Message))
+	}
 
 	return false
 }
@@ -518,6 +561,13 @@ func (s *Server) InitializeCommands() {
 				return s.commandDeleteRoom(c)
 			},
 			Usage: "/delete",
+		},
+		"/history": {
+			Description: "Lists the last N messages in the room",
+			Handler: func(s *Server, c *Client, args []string) bool {
+				return s.commandHistory(c, args)
+			},
+			Usage: "/history [positive number] (default: 20)",
 		},
 	}
 }

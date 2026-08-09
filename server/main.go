@@ -25,11 +25,12 @@ func main() {
 		clients:  make(map[string]*Client),
 		users:    make(map[string]*User),
 		conns:    make(map[net.Conn]struct{}),
+		chatLogs: make(map[string]*ChatLog),
 		rooms:    make(map[string]*Room),
 	}
 
 	server.InitializeCommands()
-	
+
 	if err := server.loadConfig(); err != nil {
 		log.Println("No config found. Creating defaults...")
 		createDefaultState(server)
@@ -57,7 +58,6 @@ func main() {
 	server.Shutdown()
 
 }
-
 
 func createDefaultState(server *Server) {
 	server.SetName("TuChat")

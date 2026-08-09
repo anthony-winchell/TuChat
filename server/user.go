@@ -53,7 +53,7 @@ func NewUser(username string, password string) (*User, error) {
 
 func RestoreUser(username string, passwordHash string) *User {
 	return &User{
-		username: username,
+		username:     username,
 		passwordHash: passwordHash,
 	}
 }

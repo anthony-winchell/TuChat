@@ -2,9 +2,9 @@ package main
 
 import (
 	"log"
+	"time"
 	"tuchat/protocol"
 )
-
 
 func (s *Server) sendToAll(message protocol.Message, except *Client) {
 	for _, client := range s.clientsSnapshot() {
@@ -18,10 +18,28 @@ func (s *Server) sendToAll(message protocol.Message, except *Client) {
 }
 
 func (s *Server) broadcastMessage(text string, sender *Client) {
-	sender.Room().Broadcast(protocol.Message{
-		Type:    "chat",
+
+	room := sender.Room()
+
+	chatlog, err := s.getChatLog(room.Name())
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	err = chatlog.Write(LogEntry{
+		Username:  sender.User().Username(),
+		Message:   text,
+		Timestamp: time.Now(),
+	})
+	if err != nil {
+		log.Println("Failed to write to chatlog:", err)
+	}
+
+	room.Broadcast(protocol.Message{
+		Type:     "chat",
 		Username: sender.User().Username(),
-		Message: text,
+		Message:  text,
 	}, sender)
 }
 

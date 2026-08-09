@@ -147,7 +147,7 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 		}
 
 		switch message.Type {
-		case "register": 
+		case "register":
 			user, err := s.RegisterUser(
 				message.Username,
 				message.Password,
@@ -155,20 +155,20 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 
 			if err != nil {
 				client.Send(protocol.Message{
-					Type: "error",
+					Type:    "error",
 					Message: err.Error(),
 				})
 				continue
 			}
 
 			client.SetUser(user)
-		
+
 		case "login":
 			user, err := s.AuthenticateUser(message.Username, message.Password)
 
 			if err != nil {
 				client.Send(protocol.Message{
-					Type: "error",
+					Type:    "error",
 					Message: err.Error(),
 				})
 				continue
@@ -176,7 +176,6 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 
 			client.SetUser(user)
 		}
-
 
 		if client.User() != nil {
 			if err := s.addClient(client); err != nil {
@@ -195,7 +194,9 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 			break
 		}
 	}
-	s.JoinRoom(client, "general", "")
+	if err := s.JoinRoom(client, "general", ""); err != nil {
+		return nil, err
+	}
 
 	return client, nil
 }
@@ -286,6 +287,7 @@ func (s *Server) RoomsSnapshot() []*Room {
 }
 
 func (s *Server) RenameRoom(r *Room, newName string) error {
+	oldName := r.Name()
 	newName = strings.TrimSpace(newName)
 
 	if newName == "" {
@@ -302,6 +304,18 @@ func (s *Server) RenameRoom(r *Room, newName string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	chatLog, exists := s.chatLogs[oldName]
+
+	if exists {
+		if err := chatLog.Rename("logs/" + newName + ".log"); err != nil {
+			return err
+		}
+
+		delete(s.chatLogs, oldName)
+
+		s.chatLogs[newName] = chatLog
+	}
+
 	delete(s.rooms, r.name)
 
 	r.name = newName
@@ -312,29 +326,46 @@ func (s *Server) RenameRoom(r *Room, newName string) error {
 }
 
 func (s *Server) DeleteRoom(r *Room) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()	
+	name := r.Name()
 
-	if r.Name() == "general" {
+	if name == "general" {
 		return errors.New("the #general room cannot be deleted")
+	}
+
+	s.mu.Lock()
+
+	if _, exists := s.rooms[name]; !exists {
+		s.mu.Unlock()
+		return errors.New("room not found")
+	}
+
+	general := s.rooms["general"]
+
+	delete(s.rooms, name)
+
+	chatLog, hasChatLog := s.chatLogs[name]
+	if hasChatLog {
+		delete(s.chatLogs, name)
+	}
+
+	s.mu.Unlock()
+
+	if hasChatLog {
+		if err := chatLog.Delete(); err != nil {
+			return err
+		}
 	}
 
 	for _, client := range s.roomSnapshot(r) {
 		client.Send(protocol.Message{
-			Type: "system",
-			Message: "#" + r.Name() + " has been deleted. Moving to #general",
+			Type:    "system",
+			Message: "#" + name + " has been deleted. Moving to #general",
 		})
 
 		r.Remove(client)
-
-		general := s.rooms["general"]
-
 		general.Add(client)
-
 		client.SetRoom(general)
 	}
-
-	delete(s.rooms, r.Name())
 
 	return nil
 }
@@ -357,13 +388,15 @@ func (s *Server) AddRoom(room *Room) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	if _, exists := s.rooms[room.Name()]; exists { return errors.New("room exists") }
+	if _, exists := s.rooms[room.Name()]; exists {
+		return errors.New("room exists")
+	}
 
 	s.rooms[room.Name()] = room
 
 	return nil
 }
- 
+
 func (s *Server) AddUser(user *User) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -388,26 +421,26 @@ func (s *Server) FindUser(username string) (*User, error) {
 
 }
 
-func (s *Server) RegisterUser(username string, password string) (*User,error) {
+func (s *Server) RegisterUser(username string, password string) (*User, error) {
 
 	if err := ValidateUsername(username); err != nil {
 		return nil, err
 	}
 
 	user, err := NewUser(username, password)
-		if err != nil {
-			return nil, err
-		}
+	if err != nil {
+		return nil, err
+	}
 
-		if err := s.AddUser(user); err != nil {
-			return nil, err
-		}
+	if err := s.AddUser(user); err != nil {
+		return nil, err
+	}
 
-		if err := s.SaveConfig(); err != nil {
-			log.Println("Failed to save config: " + err.Error())
-		}
+	if err := s.SaveConfig(); err != nil {
+		log.Println("Failed to save config: " + err.Error())
+	}
 
-		return user, nil
+	return user, nil
 }
 
 func (s *Server) AuthenticateUser(username string, password string) (*User, error) {

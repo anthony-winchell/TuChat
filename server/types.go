@@ -7,51 +7,53 @@ import (
 )
 
 type Client struct {
-	conn     	net.Conn
+	conn net.Conn
 
-	user      *User
+	user *User
 
-	decoder 	*json.Decoder
-	encoder 	*json.Encoder
-	writeMu 	sync.Mutex
-	mu      	sync.RWMutex
+	decoder *json.Decoder
+	encoder *json.Encoder
+	writeMu sync.Mutex
+	mu      sync.RWMutex
 
-	room 			*Room
+	room *Room
 }
 
 type User struct {
-	mu 						sync.RWMutex
-	username 			string 
-	passwordHash 	string
+	mu           sync.RWMutex
+	username     string
+	passwordHash string
 }
 
 type Room struct {
 	mu sync.RWMutex
 
-	name    	string
-	password 	string
+	name     string
+	password string
 
-	owner   	string
-	admins    map[string]struct{}
+	owner  string
+	admins map[string]struct{}
 
-	topic   	string
-	clients 	map[string]*Client
+	topic   string
+	clients map[string]*Client
 }
 
 type Server struct {
-	mu       	sync.RWMutex
-	listener 	net.Listener
+	mu       sync.RWMutex
+	listener net.Listener
 
-	name 			string
+	name string
 
-	clients 	map[string]*Client
-	conns   	map[net.Conn]struct{}
+	clients map[string]*Client
+	conns   map[net.Conn]struct{}
 
-	users 		map[string]*User
+	users map[string]*User
 
-	rooms 		map[string]*Room
+	rooms map[string]*Room
 
-	commands 	map[string]Command
+	chatLogs map[string]*ChatLog
 
-	wg 				sync.WaitGroup
+	commands map[string]Command
+
+	wg sync.WaitGroup
 }
