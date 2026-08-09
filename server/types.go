@@ -22,6 +22,7 @@ type Client struct {
 type User struct {
 	mu           sync.RWMutex
 	username     string
+	nickname     string
 	passwordHash string
 }
 

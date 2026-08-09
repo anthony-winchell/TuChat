@@ -60,9 +60,9 @@ func receiveMessages(decoder *json.Decoder) {
 
 		switch message.Type {
 		case "chat":
-			fmt.Printf("%s: %s\n", message.Username, message.Message)
+			fmt.Printf("%s: %s\n", message.Nickname, message.Message)
 		case "pm":
-			fmt.Printf("[PM] %s: %s\n", message.Username, message.Message)
+			fmt.Printf("[PM] %s: %s\n", message.Nickname, message.Message)
 		case "system":
 			fmt.Println(message.Message)
 		case "users":
@@ -72,9 +72,9 @@ func receiveMessages(decoder *json.Decoder) {
 		case "auth_prompt":
 			fmt.Println(message.Message)
 		case "join":
-			fmt.Printf("%s joined the chat\n", message.Username)
+			fmt.Printf("%s joined the chat\n", message.Nickname)
 		case "leave":
-			fmt.Printf("%s left the chat\n", message.Username)
+			fmt.Printf("%s left the chat\n", message.Nickname)
 		case "error":
 			fmt.Println("Error: ", message.Message)
 		}
@@ -125,7 +125,7 @@ func authenticate(decoder *json.Decoder, encoder *json.Encoder, terminalReader *
 
 		switch message.Type {
 
-		case "auth_prompt": 
+		case "auth_prompt":
 			if err := promptAndSendAuth(encoder, terminalReader); err != nil {
 				return err
 			}
@@ -135,7 +135,7 @@ func authenticate(decoder *json.Decoder, encoder *json.Encoder, terminalReader *
 				return err
 			}
 
-		case "auth_success": 
+		case "auth_success":
 			return nil
 		}
 	}
@@ -150,7 +150,7 @@ func promptAndSendAuth(encoder *json.Encoder, terminalReader *bufio.Reader) erro
 
 		choice, err := terminalReader.ReadString('\n')
 		if err != nil {
-			return err 
+			return err
 		}
 
 		choice = strings.TrimSpace(choice)
@@ -158,7 +158,7 @@ func promptAndSendAuth(encoder *json.Encoder, terminalReader *bufio.Reader) erro
 		msgType := ""
 
 		switch choice {
-		case "1": 
+		case "1":
 			msgType = "login"
 
 		case "2":

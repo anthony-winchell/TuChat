@@ -40,7 +40,7 @@ func (s *Server) sendWelcome(client *Client) {
 			"%s\nWelcome to %s, %s!\n\nType /help for commands.\n%s",
 			strings.Repeat("=", 35),
 			s.name,
-			client.User().Username(),
+			client.User().Nickname(),
 			strings.Repeat("=", 35),
 		),
 	}); err != nil {
@@ -234,6 +234,19 @@ func (s *Server) findClient(username string) *Client {
 	defer s.mu.RUnlock()
 
 	return s.clients[username]
+}
+
+func (s *Server) findClientByNickname(nickname string) *Client {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, client := range s.clients {
+		if client.User().Nickname() == nickname {
+			return client
+		}
+	}
+
+	return nil
 }
 
 func (s *Server) closeClients() {
@@ -467,6 +480,43 @@ func ValidateUsername(username string) error {
 
 	if strings.Contains(username, ":") {
 		return ErrUsernameFormat
+	}
+
+	return nil
+}
+
+func ValidateNickname(nickname string) error {
+	if nickname == "" {
+		return errors.New("nickname cannot be empty")
+	}
+
+	if len(nickname) < 3 || len(nickname) > 13 {
+		return errors.New("nickname must be between 3 and 13 characters long")
+	}
+
+	if strings.Contains(nickname, ":") {
+		return errors.New("nickname cannot contain ':'")
+	}
+
+	if strings.ContainsAny(nickname, "\r\n\t") {
+		return errors.New("nickname cannot contain whitespace")
+	}
+
+	return nil
+}
+
+func (s *Server) nicknameTaken(nickname string, except *Client) error {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	for _, client := range s.clients {
+		if client == except {
+			continue
+		}
+
+		if strings.EqualFold(client.User().Nickname(), nickname) {
+			return errors.New("nickname taken")
+		}
 	}
 
 	return nil

@@ -37,6 +37,43 @@ func (s *Server) executeCommand(client *Client, input string) bool {
 	return cmd.Handler(s, client, args)
 }
 
+func (s *Server) commandNick(client *Client, args []string) bool {
+	if len(args) < 1 {
+		sendError(client, "Usage: /nick <new nickname>")
+		return false
+	}
+	oldNickname := client.User().Nickname()
+
+	nickname := args[0]
+	nickname = strings.TrimSpace(nickname)
+
+	if err := ValidateNickname(nickname); err != nil {
+		sendError(client, err.Error())
+		return false
+	}
+
+	if err := s.nicknameTaken(nickname, client); err != nil {
+		sendError(client, err.Error())
+		return false
+	}
+
+	client.User().SetNickname(nickname)
+
+	if err := s.SaveConfig(); err != nil {
+		log.Println("Failed to save config: " + err.Error())
+	}
+
+	room := client.Room()
+
+	room.Broadcast(protocol.Message{
+		Type:     "system",
+		Username: nickname,
+		Message:  oldNickname + " changed their nickname to " + nickname,
+	}, nil)
+
+	return false
+}
+
 func (s *Server) commandHelp(client *Client) bool {
 
 	message := "Commands:\n"
@@ -69,7 +106,7 @@ func (s *Server) commandUsers(client *Client) bool {
 	usernames := make([]string, 0, len(users))
 
 	for _, user := range users {
-		usernames = append(usernames, user.User().Username())
+		usernames = append(usernames, user.User().Nickname())
 	}
 
 	if err := client.Send(protocol.Message{
@@ -89,14 +126,16 @@ func (s *Server) commandQuit(client *Client) bool {
 
 func (s *Server) commandPM(client *Client, args []string) bool {
 	if len(args) < 2 {
-		sendError(client, "Usage: /pm <username> <message>")
+		sendError(client, "Usage: /pm <nickname> <message>")
 		return false
 	}
 
-	receiver := s.findClient(args[0])
+	targetNickname := args[0]
+
+	receiver := s.findClientByNickname(targetNickname)
 
 	if receiver == nil {
-		sendError(client, "User not found: "+args[0])
+		sendError(client, "User not found: "+targetNickname)
 		return false
 	}
 
@@ -107,23 +146,23 @@ func (s *Server) commandPM(client *Client, args []string) bool {
 
 	message := strings.Join(args[1:], " ")
 
-	if err := receiver.Send(protocol.Message{
+	msg := protocol.Message{
 		Type:     "pm",
 		Username: client.User().Username(),
-		Target:   args[0],
+		Nickname: client.User().Nickname(),
+		Target:   receiver.User().Nickname(),
 		Message:  message,
-	}); err != nil {
-		log.Println(err)
 	}
 
-	if err := client.Send(protocol.Message{
-		Type:     "pm",
-		Username: client.User().Username(),
-		Target:   args[0],
-		Message:  message,
-	}); err != nil {
-		log.Println(err)
+	if err := receiver.Send(msg); err != nil {
+		log.Println("Failed to send PM:", err)
+		return false
 	}
+
+	if err := client.Send(msg); err != nil {
+		log.Println("Failed to send PM confirmation:", err)
+	}
+
 	return false
 }
 
@@ -185,7 +224,7 @@ func (s *Server) commandRenameRoom(name string, client *Client) bool {
 
 	room.Broadcast(protocol.Message{
 		Type:    "system",
-		Message: client.User().Username() + " renamed the room to " + name,
+		Message: client.User().Nickname() + " renamed the room to " + name,
 	}, nil)
 	return false
 }
@@ -238,7 +277,7 @@ func (s *Server) commandSetTopic(client *Client, topic string) bool {
 
 	room.Broadcast(protocol.Message{
 		Type:    "system",
-		Message: client.User().Username() + " changed the topic to: " + topic,
+		Message: client.User().Nickname() + " changed the topic to: " + topic,
 	}, nil)
 
 	return false
@@ -267,7 +306,7 @@ func (s *Server) commandAddAdmin(client *Client, targetUsername string) bool {
 
 	room.Broadcast(protocol.Message{
 		Type:    "system",
-		Message: client.User().Username() + " made " + target.User().Username() + " admin",
+		Message: client.User().Nickname() + " made " + target.User().Nickname() + " admin",
 	}, nil)
 
 	return false
@@ -295,7 +334,7 @@ func (s *Server) commandRemoveAdmin(client *Client, targetUsername string) bool 
 
 	room.Broadcast(protocol.Message{
 		Type:    "system",
-		Message: target.User().Username() + "s admin status was revoked by " + client.User().Username(),
+		Message: target.User().Nickname() + "s admin status was revoked by " + client.User().Nickname(),
 	}, nil)
 
 	return false
@@ -318,19 +357,19 @@ func (s *Server) commandSetPassword(client *Client, password string) bool {
 		}
 		room.Broadcast(protocol.Message{
 			Type:    "system",
-			Message: client.User().Username() + " set a password",
+			Message: client.User().Nickname() + " set a password",
 		}, nil)
 	}
 
 	return false
 }
 
-func (s *Server) commandKickUser(client *Client, targetUsername string) bool {
+func (s *Server) commandKickUser(client *Client, targetNickname string) bool {
 
-	target := s.findClient(targetUsername)
+	target := s.findClientByNickname(targetNickname)
 
 	if target == nil {
-		sendError(client, "User not found: "+targetUsername)
+		sendError(client, "User not found: "+targetNickname)
 		return false
 	}
 
@@ -360,11 +399,11 @@ func (s *Server) commandKickUser(client *Client, targetUsername string) bool {
 	}
 
 	sendSystem(target, "You have been kicked from "+room.Name()+
-		" by "+client.User().Username()+". You have been moved to #general")
+		" by "+client.User().Nickname()+". You have been moved to #general")
 
 	room.Broadcast(protocol.Message{
 		Type:    "system",
-		Message: client.User().Username() + " kicked " + target.User().Username(),
+		Message: client.User().Nickname() + " kicked " + target.User().Nickname(),
 	}, nil)
 
 	return false
@@ -402,7 +441,7 @@ func (s *Server) commandHistory(client *Client, args []string) bool {
 	}
 
 	for _, entry := range entries {
-		sendSystem(client, fmt.Sprintf("%s: %s", entry.Username, entry.Message))
+		sendSystem(client, fmt.Sprintf("%s: %s", entry.Nickname, entry.Message))
 	}
 
 	return false
@@ -494,7 +533,7 @@ func (s *Server) InitializeCommands() {
 			Handler: func(s *Server, c *Client, args []string) bool {
 				return s.commandPM(c, args)
 			},
-			Usage: "/pm <username> <message>",
+			Usage: "/pm <nickname> <message>",
 		},
 
 		"/join": {
@@ -568,6 +607,23 @@ func (s *Server) InitializeCommands() {
 				return s.commandHistory(c, args)
 			},
 			Usage: "/history [positive number] (default: 20)",
+		},
+
+		"/nick": {
+			Description: "Change your nickname",
+			Handler: func(s *Server, c *Client, args []string) bool {
+				if !requireArgs(c, args, 1, "/nick <nickname>") {
+					return false
+				}
+
+				if len(args) > 1 {
+					sendError(c, "Nickname cannot contain spaces")
+					return false
+				}
+
+				return s.commandNick(c, args)
+			},
+			Usage: "/nick <nickname>",
 		},
 	}
 }

@@ -29,6 +29,7 @@ func (s *Server) broadcastMessage(text string, sender *Client) {
 
 	err = chatlog.Write(LogEntry{
 		Username:  sender.User().Username(),
+		Nickname:  sender.User().Nickname(),
 		Message:   text,
 		Timestamp: time.Now(),
 	})
@@ -39,6 +40,7 @@ func (s *Server) broadcastMessage(text string, sender *Client) {
 	room.Broadcast(protocol.Message{
 		Type:     "chat",
 		Username: sender.User().Username(),
+		Nickname: sender.User().Nickname(),
 		Message:  text,
 	}, sender)
 }
@@ -47,5 +49,6 @@ func (s *Server) leaveAlert(leaver *Client) {
 	leaver.Room().Broadcast(protocol.Message{
 		Type:     "leave",
 		Username: leaver.User().Username(),
+		Nickname: leaver.User().Nickname(),
 	}, leaver)
 }

@@ -10,6 +10,19 @@ func (u *User) Username() string {
 	return u.username
 }
 
+func (u *User) Nickname() string {
+	u.mu.RLock()
+	defer u.mu.RUnlock()
+	return u.nickname
+}
+
+func (u *User) SetNickname(nickname string) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+
+	u.nickname = nickname
+}
+
 func (u *User) SetUsername(username string) {
 	u.mu.Lock()
 	defer u.mu.Unlock()
@@ -42,6 +55,7 @@ func (u *User) CheckPassword(password string) error {
 func NewUser(username string, password string) (*User, error) {
 	u := &User{
 		username: username,
+		nickname: username,
 	}
 
 	if err := u.SetPassword(password); err != nil {
@@ -51,9 +65,10 @@ func NewUser(username string, password string) (*User, error) {
 	return u, nil
 }
 
-func RestoreUser(username string, passwordHash string) *User {
+func RestoreUser(username string, nickname string, passwordHash string) *User {
 	return &User{
 		username:     username,
+		nickname:     nickname,
 		passwordHash: passwordHash,
 	}
 }

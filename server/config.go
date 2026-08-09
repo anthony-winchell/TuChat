@@ -6,22 +6,23 @@ import (
 )
 
 type Config struct {
-	ServerName 	string `json:"server_name"`
-	Rooms      	[]RoomConfig `json:"rooms"`
-	Users      	[]UserConfig `json:"users"`
+	ServerName string       `json:"server_name"`
+	Rooms      []RoomConfig `json:"rooms"`
+	Users      []UserConfig `json:"users"`
 }
 
 type UserConfig struct {
-	Username 	string `json:"username"`
+	Username     string `json:"username"`
+	Nickname     string `json:"nickname"`
 	PasswordHash string `json:"password_hash"`
 }
 
 type RoomConfig struct {
-	Name     		 	string `json:"name"`
-	Topic    		 	string `json:"topic"`
-	PasswordHash 	string `json:"password_hash"`
-	Owner    		 	string `json:"owner"`
-	Admins   		 	[]string `json:"admins"`
+	Name         string   `json:"name"`
+	Topic        string   `json:"topic"`
+	PasswordHash string   `json:"password_hash"`
+	Owner        string   `json:"owner"`
+	Admins       []string `json:"admins"`
 }
 
 func (s *Server) SaveConfig() error {
@@ -31,18 +32,19 @@ func (s *Server) SaveConfig() error {
 
 	for _, user := range s.usersSnapshot() {
 		config.Users = append(config.Users, UserConfig{
-			Username: user.Username(),
+			Username:     user.Username(),
+			Nickname:     user.Nickname(),
 			PasswordHash: user.PasswordHash(),
 		})
 	}
-	
+
 	for _, room := range s.RoomsSnapshot() {
 		config.Rooms = append(config.Rooms, RoomConfig{
-			Name:      		room.Name(),
-			Topic:     		room.Topic(),
+			Name:         room.Name(),
+			Topic:        room.Topic(),
 			PasswordHash: room.PasswordHash(),
-			Owner:    		room.Owner(),
-			Admins:   		room.AdminsUsernames(),
+			Owner:        room.Owner(),
+			Admins:       room.AdminsUsernames(),
 		})
 	}
 
@@ -63,13 +65,13 @@ func (s *Server) loadConfig() error {
 		return err
 	}
 
-	var config Config 
+	var config Config
 	if err = json.Unmarshal(data, &config); err != nil {
-		return err 
+		return err
 	}
 
 	s.SetName(config.ServerName)
-	
+
 	for _, roomConfig := range config.Rooms {
 		room := NewRoom(roomConfig.Name)
 		room.SetTopic(roomConfig.Topic)
@@ -86,13 +88,11 @@ func (s *Server) loadConfig() error {
 	}
 
 	for _, userConfig := range config.Users {
-		user := RestoreUser(userConfig.Username, userConfig.PasswordHash)
+		user := RestoreUser(userConfig.Username, userConfig.Nickname, userConfig.PasswordHash)
 		if err := s.AddUser(user); err != nil {
 			return err
 		}
 	}
 
-	return nil 
+	return nil
 }
-
-

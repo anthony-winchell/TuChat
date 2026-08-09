@@ -10,6 +10,7 @@ import (
 
 type LogEntry struct {
 	Username  string    `json:"username"`
+	Nickname  string    `json:"nickname"`
 	Message   string    `json:"message"`
 	Timestamp time.Time `json:"timestamp"`
 }

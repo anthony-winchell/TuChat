@@ -29,7 +29,7 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 
 		oldRoom.Broadcast(protocol.Message{
 			Type:    "system",
-			Message: client.User().Username() + " left the room",
+			Message: client.User().Nickname() + " left the room",
 		}, client)
 	}
 
@@ -60,7 +60,7 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 
 	room.Broadcast(protocol.Message{
 		Type:    "system",
-		Message: client.User().Username() + " joined the room",
+		Message: client.User().Nickname() + " joined the room",
 	}, client)
 
 	return nil
@@ -77,9 +77,9 @@ func (s *Server) FindOrCreateRoom(name string) (*Room, bool) {
 	_, ok := s.rooms[name]
 	if !ok {
 		s.rooms[name] = &Room{
-			name:      name,
-			clients:   make(map[string]*Client),
-			admins:    make(map[string]struct{}),
+			name:    name,
+			clients: make(map[string]*Client),
+			admins:  make(map[string]struct{}),
 		}
 
 		new = true
@@ -247,11 +247,17 @@ func (r *Room) RequireOwner(client *Client) error {
 }
 
 func (r *Room) KickUser(client *Client) error {
-	r.Remove(client)
+	username := client.User().Username()
 
 	r.mu.Lock()
-	delete(r.admins, client.User().Username())
-	r.mu.Unlock()
+	defer r.mu.Unlock()
+
+	if _, ok := r.clients[username]; !ok {
+		return errors.New("user not in this room")
+	}
+
+	delete(r.clients, username)
+	delete(r.admins, username)
 
 	return nil
 }
@@ -312,7 +318,7 @@ func (r *Room) SetPassword(password string) error {
 
 	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
 	if err != nil {
-		return err 
+		return err
 	}
 
 	r.password = string(hash)
@@ -346,9 +352,9 @@ func (r *Room) PasswordHash() string {
 
 func NewRoom(name string) *Room {
 	return &Room{
-		name: 			name,
-		clients: 		make(map[string]*Client),
-		admins: 	make(map[string]struct{}),
+		name:    name,
+		clients: make(map[string]*Client),
+		admins:  make(map[string]struct{}),
 	}
 }
 
@@ -364,4 +370,36 @@ func (r *Room) Owner() string {
 	defer r.mu.RUnlock()
 
 	return r.owner
+}
+
+func ValidateRoomName(name string) error {
+	if name == "" {
+		return errors.New("room name cannot be empty")
+	}
+
+	if len(name) < 2 || len(name) > 50 {
+		return errors.New("room name must be between 2 and 50 characters long")
+	}
+
+	if strings.Contains(name, " ") {
+		return errors.New("room name cannot contain spaces")
+	}
+
+	if strings.Contains(name, "/") {
+		return errors.New("room name cannot contain forward slashes")
+	}
+
+	if strings.Contains(name, "\\") {
+		return errors.New("room name cannot contain back slashes")
+	}
+
+	if strings.Contains(name, ".") {
+		return errors.New("room name cannot contain periods")
+	}
+
+	if strings.ContainsAny(name, "#!@$%^&*()[]{}|;:,<>?~`") {
+		return errors.New("room name cannot contain special characters")
+	}
+
+	return nil
 }
