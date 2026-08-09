@@ -125,67 +125,69 @@ func authenticate(decoder *json.Decoder, encoder *json.Encoder, terminalReader *
 
 		switch message.Type {
 
-		case "auth_prompt":
-			fmt.Println(message.Message)
-
-			fmt.Println("1. Login")
-			fmt.Println("2. Register")
-
-			fmt.Print("> ")
-
-			choice, err := terminalReader.ReadString('\n')
-			if err != nil {
+		case "auth_prompt": 
+			if err := promptAndSendAuth(encoder, terminalReader); err != nil {
 				return err
 			}
-
-			choice = strings.TrimSpace(choice)
-
-			fmt.Print("Username: ")
-
-			username, err := terminalReader.ReadString('\n')
-			if err != nil {
-				return err
-			}
-
-			fmt.Print("Password: ")
-
-			password, err := terminalReader.ReadString('\n')
-			if err != nil {
-				return err
-			}
-
-
-			msgType := ""
-
-			switch choice {
-			case "1":
-				msgType = "login"
-
-			case "2":
-				msgType = "register"
-
-			default:
-				fmt.Println("Invalid option")
-				continue
-			}
-
-
-			if err := Send(encoder, protocol.Message{
-				Type:     msgType,
-				Username: strings.TrimSpace(username),
-				Password: strings.TrimSpace(password),
-			}); err != nil {
-				return err
-			}
-
-
 		case "error":
-			fmt.Println("Error:", message.Message)
+			fmt.Println("Error: ", message.Message)
+			if err := promptAndSendAuth(encoder, terminalReader); err != nil {
+				return err
+			}
 
-
-		case "auth_success":
+		case "auth_success": 
 			return nil
 		}
+	}
+}
+
+func promptAndSendAuth(encoder *json.Encoder, terminalReader *bufio.Reader) error {
+	for {
+		fmt.Println("1. Login")
+		fmt.Println("2. Register")
+
+		fmt.Print("> ")
+
+		choice, err := terminalReader.ReadString('\n')
+		if err != nil {
+			return err 
+		}
+
+		choice = strings.TrimSpace(choice)
+
+		msgType := ""
+
+		switch choice {
+		case "1": 
+			msgType = "login"
+
+		case "2":
+			msgType = "register"
+
+		default:
+			fmt.Println("Invalid option")
+			continue
+		}
+
+		fmt.Print("Username: ")
+
+		username, err := terminalReader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+
+		fmt.Print("Password: ")
+
+		password, err := terminalReader.ReadString('\n')
+		if err != nil {
+			return err
+		}
+
+		return Send(encoder, protocol.Message{
+			Type:     msgType,
+			Username: strings.TrimSpace(username),
+			Password: strings.TrimSpace(password),
+		})
 	}
 }
 
