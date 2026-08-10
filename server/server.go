@@ -303,8 +303,8 @@ func (s *Server) RenameRoom(r *Room, newName string) error {
 	oldName := r.Name()
 	newName = strings.TrimSpace(newName)
 
-	if newName == "" {
-		return errors.New("room name cannot be empty")
+	if err := ValidateRoomName(newName); err != nil {
+		return err
 	}
 
 	s.mu.Lock()
@@ -375,9 +375,16 @@ func (s *Server) DeleteRoom(r *Room) error {
 			Message: "#" + name + " has been deleted. Moving to #general",
 		})
 
-		r.Remove(client)
-		general.Add(client)
-		client.SetRoom(general)
+		for _, client := range s.roomSnapshot(r) {
+			if err := client.Send(protocol.Message{
+				Type:    "system",
+				Message: "#" + name + " has been deleted. Moving to #general",
+			}); err != nil {
+				log.Println(err)
+			}
+			r.Remove(client)
+			general.Add(client)
+		}
 	}
 
 	return nil

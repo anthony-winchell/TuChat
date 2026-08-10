@@ -12,7 +12,10 @@ import (
 var ErrAlreadyInRoom = errors.New("already in room")
 
 func (s *Server) JoinRoom(client *Client, roomName string, password string) error {
-	room, new := s.FindOrCreateRoom(roomName)
+	room, newRoom, err := s.FindOrCreateRoom(roomName)
+	if err != nil {
+		return err
+	}
 
 	if client.Room() == room {
 		return ErrAlreadyInRoom
@@ -33,21 +36,20 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 		}, client)
 	}
 
-	if new {
+	room.Add(client)
+
+	if newRoom {
+		room.SetOwner(client.User().Username())
+
+		if err := s.SaveConfig(); err != nil {
+			log.Println("Failed to save config:", err)
+		}
+
 		if err := client.Send(protocol.Message{
 			Type:    "system",
 			Message: "Room created: " + roomName,
 		}); err != nil {
 			log.Println(err)
-		}
-	}
-
-	room.Add(client)
-
-	if new {
-		room.SetOwner(client.User().Username())
-		if err := s.SaveConfig(); err != nil {
-			log.Println("Failed to save config: " + err.Error())
 		}
 	}
 
@@ -66,26 +68,24 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 	return nil
 }
 
-func (s *Server) FindOrCreateRoom(name string) (*Room, bool) {
+func (s *Server) FindOrCreateRoom(name string) (*Room, bool, error) {
+	name = strings.TrimSpace(name)
+
+	if err := ValidateRoomName(name); err != nil {
+		return nil, false, err
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	name = strings.TrimSpace(name)
-
-	new := false
-
-	_, ok := s.rooms[name]
-	if !ok {
-		s.rooms[name] = &Room{
-			name:    name,
-			clients: make(map[string]*Client),
-			admins:  make(map[string]struct{}),
-		}
-
-		new = true
+	if room, exists := s.rooms[name]; exists {
+		return room, false, nil
 	}
 
-	return s.rooms[name], new
+	room := NewRoom(name)
+	s.rooms[name] = room
+
+	return room, true, nil
 }
 
 func (r *Room) Remove(client *Client) {
@@ -94,6 +94,7 @@ func (r *Room) Remove(client *Client) {
 	defer r.mu.Unlock()
 
 	delete(r.clients, client.User().Username())
+
 
 	client.mu.Lock()
 	client.room = nil
@@ -157,11 +158,19 @@ func (r *Room) IsAdmin(username string) bool {
 	defer r.mu.RUnlock()
 
 	_, ok := r.admins[username]
-	if ok || username == r.owner {
+
+	if ok {
 		return true
 	}
 
 	return false
+}
+
+func (r *Room) IsOwner(username string) bool {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	return r.owner == username
 }
 
 func (r *Room) Has(client *Client) bool {
@@ -219,6 +228,7 @@ func (r *Room) SetOwner(username string) {
 	defer r.mu.Unlock()
 
 	r.owner = username
+	r.admins[username] = struct{}{}
 }
 
 func (r *Room) RequireAdmin(client *Client) error {
@@ -227,9 +237,14 @@ func (r *Room) RequireAdmin(client *Client) error {
 		return errors.New("general is the default room and cannot be modified")
 	}
 
+	if r.IsOwner(client.User().Username()) {
+		return nil
+	}
+
 	if !r.IsAdmin(client.User().Username()) {
 		return errors.New("admin permissions required")
 	}
+
 
 	return nil
 }
@@ -239,7 +254,7 @@ func (r *Room) RequireOwner(client *Client) error {
 		return errors.New("general is the default room and cannot be modified")
 	}
 
-	if client.User().Username() != r.owner {
+	if client.User().Username() != r.Owner() {
 		return errors.New("owner permissions required")
 	}
 
@@ -258,6 +273,10 @@ func (r *Room) KickUser(client *Client) error {
 
 	delete(r.clients, username)
 	delete(r.admins, username)
+
+	client.mu.Lock()
+	client.room = nil
+	client.mu.Unlock()
 
 	return nil
 }

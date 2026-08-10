@@ -1,6 +1,6 @@
 package main
 
-import( 
+import (
 	"net"
 )
 
@@ -12,7 +12,7 @@ func (s *Server) roomSnapshot(room *Room) []*Client {
 
 	for _, client := range room.clients {
 		clients = append(clients, client)
-	}	
+	}
 
 	return clients
 }
