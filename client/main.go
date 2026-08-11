@@ -77,8 +77,9 @@ func receiveMessages(decoder *json.Decoder) {
 			fmt.Printf("%s left the chat\n", message.Nickname)
 		case "error":
 			fmt.Println("Error: ", message.Message)
+		case "announcement":
+			fmt.Printf("\n================== Announcement ==================\n\n\n%s\n\n\n==================================================\n", message.Message)
 		}
-
 	}
 }
 

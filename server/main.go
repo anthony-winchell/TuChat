@@ -37,12 +37,20 @@ func main() {
 		log.Println("No config found. Creating defaults...")
 		createDefaultState(server)
 		server.configureName()
+		server.configureOwner()
 
 		if err := server.SaveConfig(); err != nil {
 			log.Println(err)
 		}
 	} else {
 		log.Println("Config found. Server name: " + server.Name())
+
+		if server.Owner() == "" {
+			server.configureOwner()
+			if err := server.SaveConfig(); err != nil {
+				log.Println(err)
+			}
+		}
 
 	}
 

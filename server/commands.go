@@ -38,6 +38,47 @@ func (s *Server) executeCommand(client *Client, input string) bool {
 	return cmd.Handler(s, client, args)
 }
 
+func (s *Server) commandServerRename(client *Client, name string) bool {
+	if err := s.RequireServerOwner(client); err != nil {
+		sendError(client, err.Error())
+		return false
+	}
+
+	name = strings.TrimSpace(name)
+
+	if name == "" {
+		sendError(client, "Server name cannot be empty")
+		return false
+	}
+
+	s.SetName(name)
+
+	if err := s.SaveConfig(); err != nil {
+		log.Println("Failed to save config: " + err.Error())
+	}
+
+	s.sendToAll(protocol.Message{
+		Type: "system",
+		Message: client.User().Nickname() + " renamed the server to " + name,
+	}, nil)
+
+	return false
+}
+
+func (s *Server) commandAnnounce(client *Client, message string) bool {
+	if err := s.RequireServerOwner(client); err != nil {
+		sendError(client, err.Error())
+		return false
+	}
+
+	s.sendToAll(protocol.Message{
+		Type:    "announcement",
+		Message: message,
+	}, nil)
+
+	return false
+}
+
 func (s *Server) commandNick(client *Client, args []string) bool {
 	if len(args) < 1 {
 		sendError(client, "Usage: /nick <new nickname>")
@@ -644,6 +685,27 @@ func (s *Server) InitializeCommands() {
 				return s.commandServerInfo(c)
 			},
 			Usage: "/serverinfo",
+		},
+		"/serverrename": {
+			Description: "Renames the server (owner only)",
+			Handler: func(s *Server, c *Client, args []string) bool {
+				if !requireArgs(c, args, 1, "/serverrename <name>") {
+					return false
+				}
+				return s.commandServerRename(c, strings.Join(args, " "))
+			},
+			Usage: "/serverrename <name>",
+		},
+
+		"/announce": {
+			Description: "Sends a server-wide announcement (owner only)",
+			Handler: func(s *Server, c *Client, args []string) bool {
+				if !requireArgs(c, args, 1, "/announce <message>") {
+					return false
+				}
+				return s.commandAnnounce(c, strings.Join(args, " "))
+			},
+			Usage: "/announce <message>",
 		},
 	}
 }
