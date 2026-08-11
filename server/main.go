@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"time"
 )
 
 var ErrUsernameTaken = errors.New("Username already taken")
@@ -20,13 +21,14 @@ func main() {
 	}
 
 	server := &Server{
-		name:     "TuChat",
-		listener: listener,
-		clients:  make(map[string]*Client),
-		users:    make(map[string]*User),
-		conns:    make(map[net.Conn]struct{}),
-		chatLogs: make(map[string]*ChatLog),
-		rooms:    make(map[string]*Room),
+		name:      "TuChat",
+		listener:  listener,
+		clients:   make(map[string]*Client),
+		users:     make(map[string]*User),
+		conns:     make(map[net.Conn]struct{}),
+		chatLogs:  make(map[string]*ChatLog),
+		rooms:     make(map[string]*Room),
+		startTime: time.Now(),
 	}
 
 	server.InitializeCommands()

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net"
 	"sync"
+	"time"
 )
 
 type Client struct {
@@ -55,6 +56,8 @@ type Server struct {
 	chatLogs map[string]*ChatLog
 
 	commands map[string]Command
+
+	startTime time.Time
 
 	wg sync.WaitGroup
 }

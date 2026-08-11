@@ -102,6 +102,15 @@ func (s *Server) commandHelp(client *Client) bool {
 	return false
 }
 
+func (s *Server) commandServerInfo(client *Client) bool {
+	sendSystem(client, "Server: "+s.Name())
+	sendSystem(client, "Uptime: "+time.Since(s.startTime).Round(time.Second).String())
+	sendSystem(client, fmt.Sprintf("Rooms: %d", len(s.RoomsSnapshot())))
+	sendSystem(client, fmt.Sprintf("Users: %d", len(s.clientsSnapshot())))
+
+	return false
+}
+
 func (s *Server) commandUsers(client *Client) bool {
 	users := client.Room().Users()
 	usernames := make([]string, 0, len(users))
@@ -628,6 +637,13 @@ func (s *Server) InitializeCommands() {
 				return s.commandNick(c, args)
 			},
 			Usage: "/nick <nickname>",
+		},
+		"/serverinfo": {
+			Description: "Lists basic server information",
+			Handler: func(s *Server, c *Client, args []string) bool {
+				return s.commandServerInfo(c)
+			},
+			Usage: "/serverinfo",
 		},
 	}
 }
