@@ -60,9 +60,9 @@ func receiveMessages(decoder *json.Decoder) {
 
 		switch message.Type {
 		case "chat":
-			fmt.Printf("%s: %s\n", message.Nickname, message.Message)
+			fmt.Printf("[%s] %s: %s\n", message.Timestamp.Format("15:04"), message.Nickname, message.Message)
 		case "pm":
-			fmt.Printf("[PM] %s: %s\n", message.Nickname, message.Message)
+			fmt.Printf("[PM] [%s] %s: %s\n", message.Timestamp.Format("15:04"), message.Nickname, message.Message)
 		case "system":
 			fmt.Println(message.Message)
 		case "users":

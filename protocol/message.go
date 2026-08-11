@@ -1,5 +1,7 @@
 package protocol
 
+import "time"
+
 type Message struct {
 	Type string `json:"type"`
 
@@ -11,4 +13,6 @@ type Message struct {
 	Message string `json:"message,omitempty"`
 
 	Users []string `json:"users,omitempty"`
+
+	Timestamp time.Time `json:"timestamp,omitempty"`
 }

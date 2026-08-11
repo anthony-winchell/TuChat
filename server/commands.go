@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 	"tuchat/protocol"
 )
 
@@ -130,6 +131,8 @@ func (s *Server) commandPM(client *Client, args []string) bool {
 		return false
 	}
 
+	time := time.Now()
+
 	targetNickname := args[0]
 
 	receiver := s.findClientByNickname(targetNickname)
@@ -147,11 +150,12 @@ func (s *Server) commandPM(client *Client, args []string) bool {
 	message := strings.Join(args[1:], " ")
 
 	msg := protocol.Message{
-		Type:     "pm",
-		Username: client.User().Username(),
-		Nickname: client.User().Nickname(),
-		Target:   receiver.User().Nickname(),
-		Message:  message,
+		Type:      "pm",
+		Username:  client.User().Username(),
+		Nickname:  client.User().Nickname(),
+		Target:    receiver.User().Nickname(),
+		Message:   message,
+		Timestamp: time,
 	}
 
 	if err := receiver.Send(msg); err != nil {

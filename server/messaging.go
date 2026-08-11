@@ -19,6 +19,8 @@ func (s *Server) sendToAll(message protocol.Message, except *Client) {
 
 func (s *Server) broadcastMessage(text string, sender *Client) {
 
+	time := time.Now()
+
 	room := sender.Room()
 
 	chatlog, err := s.getChatLog(room.Name())
@@ -31,24 +33,26 @@ func (s *Server) broadcastMessage(text string, sender *Client) {
 		Username:  sender.User().Username(),
 		Nickname:  sender.User().Nickname(),
 		Message:   text,
-		Timestamp: time.Now(),
+		Timestamp: time,
 	})
 	if err != nil {
 		log.Println("Failed to write to chatlog:", err)
 	}
 
 	room.Broadcast(protocol.Message{
-		Type:     "chat",
-		Username: sender.User().Username(),
-		Nickname: sender.User().Nickname(),
-		Message:  text,
+		Type:      "chat",
+		Username:  sender.User().Username(),
+		Nickname:  sender.User().Nickname(),
+		Message:   text,
+		Timestamp: time,
 	}, sender)
 }
 
 func (s *Server) leaveAlert(leaver *Client) {
 	leaver.Room().Broadcast(protocol.Message{
-		Type:     "leave",
-		Username: leaver.User().Username(),
-		Nickname: leaver.User().Nickname(),
+		Type:      "leave",
+		Username:  leaver.User().Username(),
+		Nickname:  leaver.User().Nickname(),
+		Timestamp: time.Now(),
 	}, leaver)
 }
