@@ -241,9 +241,9 @@ func (s *Server) findClientByNickname(nickname string) *Client {
 	defer s.mu.RUnlock()
 
 	for _, client := range s.clients {
-		if client.User().Nickname() == nickname {
+		if strings.EqualFold(client.User().Nickname(), nickname) {
 			return client
-		}
+		} 
 	}
 
 	return nil
@@ -370,22 +370,16 @@ func (s *Server) DeleteRoom(r *Room) error {
 	}
 
 	for _, client := range s.roomSnapshot(r) {
-		client.Send(protocol.Message{
-			Type:    "system",
-			Message: "#" + name + " has been deleted. Moving to #general",
-		})
-
-		for _, client := range s.roomSnapshot(r) {
-			if err := client.Send(protocol.Message{
-				Type:    "system",
-				Message: "#" + name + " has been deleted. Moving to #general",
-			}); err != nil {
-				log.Println(err)
-			}
-			r.Remove(client)
-			general.Add(client)
-		}
+	if err := client.Send(protocol.Message{
+		Type:    "system",
+		Message: "#" + name + " has been deleted. Moving to #general",
+	}); err != nil {
+		log.Println(err)
 	}
+
+	r.Remove(client)
+	general.Add(client)
+}
 
 	return nil
 }
