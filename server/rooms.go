@@ -391,6 +391,118 @@ func (r *Room) Owner() string {
 	return r.owner
 }
 
+func (s *Server) RoomsSnapshot() []*Room {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	rooms := make([]*Room, 0, len(s.rooms))
+
+	for _, room := range s.rooms {
+		rooms = append(rooms, room)
+	}
+
+	return rooms
+}
+
+func (s *Server) RenameRoom(r *Room, newName string) error {
+	oldName := r.Name()
+	newName = strings.TrimSpace(newName)
+
+	if err := ValidateRoomName(newName); err != nil {
+		return err
+	}
+
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, exists := s.rooms[newName]; exists {
+		return errors.New("room exists")
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	chatLog, exists := s.chatLogs[oldName]
+
+	if exists {
+		if err := chatLog.Rename("logs/" + newName + ".log"); err != nil {
+			return err
+		}
+
+		delete(s.chatLogs, oldName)
+
+		s.chatLogs[newName] = chatLog
+	}
+
+	delete(s.rooms, r.name)
+
+	r.name = newName
+
+	s.rooms[newName] = r
+
+	return nil
+}
+
+func (s *Server) DeleteRoom(r *Room) error {
+	name := r.Name()
+
+	if name == "general" {
+		return errors.New("the #general room cannot be deleted")
+	}
+
+	s.mu.Lock()
+
+	if _, exists := s.rooms[name]; !exists {
+		s.mu.Unlock()
+		return errors.New("room not found")
+	}
+
+	general := s.rooms["general"]
+
+	delete(s.rooms, name)
+
+	chatLog, hasChatLog := s.chatLogs[name]
+	if hasChatLog {
+		delete(s.chatLogs, name)
+	}
+
+	s.mu.Unlock()
+
+	if hasChatLog {
+		if err := chatLog.Delete(); err != nil {
+			return err
+		}
+	}
+
+	for _, client := range s.roomSnapshot(r) {
+		if err := client.Send(protocol.Message{
+			Type:    "system",
+			Message: "#" + name + " has been deleted. Moving to #general",
+		}); err != nil {
+			log.Println(err)
+		}
+
+		r.Remove(client)
+		general.Add(client)
+	}
+
+	return nil
+}
+
+func (s *Server) AddRoom(room *Room) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if _, exists := s.rooms[room.Name()]; exists {
+		return errors.New("room exists")
+	}
+
+	s.rooms[room.Name()] = room
+
+	return nil
+}
+
+
 func ValidateRoomName(name string) error {
 	if name == "" {
 		return errors.New("room name cannot be empty")

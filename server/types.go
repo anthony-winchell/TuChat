@@ -67,3 +67,26 @@ type Server struct {
 
 	wg sync.WaitGroup
 }
+
+type Config struct {
+	ServerName         string       `json:"server_name"`
+	Owner              string       `json:"owner"`
+	ServerPasswordHash string       `json:"server_password_hash"`
+	WelcomeMessage     string       `json:"welcome_message"`
+	Rooms              []RoomConfig `json:"rooms"`
+	Users              []UserConfig `json:"users"`
+}
+
+type UserConfig struct {
+	Username     string `json:"username"`
+	Nickname     string `json:"nickname"`
+	PasswordHash string `json:"password_hash"`
+}
+
+type RoomConfig struct {
+	Name         string   `json:"name"`
+	Topic        string   `json:"topic"`
+	PasswordHash string   `json:"password_hash"`
+	Owner        string   `json:"owner"`
+	Admins       []string `json:"admins"`
+}

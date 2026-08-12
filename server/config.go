@@ -1,36 +1,9 @@
 package main
 
 import (
-	"bufio"
 	"encoding/json"
-	"errors"
-	"fmt"
 	"os"
-	"strings"
 )
-
-type Config struct {
-	ServerName         string       `json:"server_name"`
-	Owner              string       `json:"owner"`
-	ServerPasswordHash string       `json:"server_password_hash"`
-	WelcomeMessage     string       `json:"welcome_message"`
-	Rooms              []RoomConfig `json:"rooms"`
-	Users              []UserConfig `json:"users"`
-}
-
-type UserConfig struct {
-	Username     string `json:"username"`
-	Nickname     string `json:"nickname"`
-	PasswordHash string `json:"password_hash"`
-}
-
-type RoomConfig struct {
-	Name         string   `json:"name"`
-	Topic        string   `json:"topic"`
-	PasswordHash string   `json:"password_hash"`
-	Owner        string   `json:"owner"`
-	Admins       []string `json:"admins"`
-}
 
 func (s *Server) SaveConfig() error {
 	config := Config{
@@ -108,49 +81,4 @@ func (s *Server) loadConfig() error {
 	}
 
 	return nil
-}
-
-func (s *Server) Owner() string {
-	s.mu.RLock()
-	defer s.mu.RUnlock()
-	return s.owner
-}
-
-func (s *Server) SetOwner(owner string) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.owner = owner
-}
-
-func (s *Server) RequireServerOwner(client *Client) error {
-	if client.User().Username() == s.Owner() {
-		return nil
-	}
-
-	return errors.New("server owner permissions required")
-}
-
-func (s *Server) configureOwner() {
-	reader := bufio.NewReader(os.Stdin)
-
-	for {
-		fmt.Println("Set server owner username:")
-		fmt.Print("> ")
-
-		owner, err := reader.ReadString('\n')
-		if err != nil {
-			fmt.Println(err)
-			return
-		}
-
-		owner = strings.TrimSpace(owner)
-
-		if err := ValidateUsername(owner); err != nil {
-			fmt.Println(err.Error())
-			continue
-		}
-
-		s.SetOwner(owner)
-		return
-	}
 }
