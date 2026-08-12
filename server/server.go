@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 	"tuchat/protocol"
+	"golang.org/x/crypto/bcrypt"
 )
 
 func (s *Server) Start() {
@@ -31,6 +32,58 @@ func (s *Server) Start() {
 			s.handleConnection(conn)
 		})
 	}
+}
+
+func (s *Server) SetPassword(password string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	password = strings.TrimSpace(password)
+	
+	if password == "" {
+		s.password = ""
+		return nil
+	}
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return err
+	}
+
+	s.password = string(hash)
+	return nil
+}
+
+func (s *Server) HasPassword() bool {
+	s.mu.RLock()
+	s.mu.RUnlock()
+
+	return s.password != ""
+}
+
+func (s *Server) CheckPassword(password string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock() 
+
+	if s.password == "" {
+		return true
+	}
+
+	return bcrypt.CompareHashAndPassword([]byte(s.password), []byte(password)) == nil
+}
+
+func (s *Server) PasswordHash() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.password
+}
+
+func (s *Server) RestorePasswordHash(hash string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.password = hash
 }
 
 func (s *Server) sendWelcome(client *Client) {
@@ -130,6 +183,12 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 		conn:    conn,
 		decoder: json.NewDecoder(conn),
 		encoder: json.NewEncoder(conn),
+	}
+
+	if s.HasPassword() {
+		if err := s.requireServerPassword(client); err != nil {
+			return nil, err
+		}
 	}
 
 	if err := client.Send(protocol.Message{
@@ -521,4 +580,41 @@ func (s *Server) nicknameTaken(nickname string, except *Client) error {
 	}
 
 	return nil
+}
+
+func (s *Server) requireServerPassword(client *Client) error {
+	if err := client.Send(protocol.Message{
+		Type: "server_password_prompt",
+		Message: "Server password required",
+	}); err != nil {
+		return err
+	}
+
+	for {
+		var message protocol.Message
+		if err := client.decoder.Decode(&message); err != nil {
+			return err
+		}
+
+		if message.Type != "server_password" {
+			if err := client.Send(protocol.Message{
+				Type: "error",
+				Message: "Expected server password",
+			}); err != nil {
+				return err
+			}
+			continue
+		}
+
+		if s.CheckPassword(message.Password){
+			return nil
+		}
+
+		if err := client.Send(protocol.Message{
+			Type: "error",
+			Message: "Incorrect server password",
+		}); err != nil {
+			return err
+		}
+	}
 }

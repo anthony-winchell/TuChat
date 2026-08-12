@@ -10,10 +10,12 @@ import (
 )
 
 type Config struct {
-	ServerName string       `json:"server_name"`
-	Owner      string       `json:"owner"`
-	Rooms      []RoomConfig `json:"rooms"`
-	Users      []UserConfig `json:"users"`
+	ServerName         string       `json:"server_name"`
+	Owner              string       `json:"owner"`
+	ServerPasswordHash string       `json:"server_password_hash"`
+	WelcomeMessage     string       `json:"welcome_message"`
+	Rooms              []RoomConfig `json:"rooms"`
+	Users              []UserConfig `json:"users"`
 }
 
 type UserConfig struct {
@@ -34,6 +36,7 @@ func (s *Server) SaveConfig() error {
 	config := Config{
 		ServerName: s.Name(),
 		Owner:      s.Owner(),
+		ServerPasswordHash: s.PasswordHash(),
 	}
 
 	for _, user := range s.usersSnapshot() {
@@ -78,6 +81,7 @@ func (s *Server) loadConfig() error {
 
 	s.SetName(config.ServerName)
 	s.SetOwner(config.Owner)
+	s.RestorePasswordHash(config.ServerPasswordHash)
 
 	for _, roomConfig := range config.Rooms {
 		room := NewRoom(roomConfig.Name)
@@ -145,6 +149,6 @@ func (s *Server) configureOwner() {
 		}
 
 		s.SetOwner(owner)
-		return 
+		return
 	}
 }

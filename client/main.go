@@ -117,6 +117,8 @@ func sendMessages(encoder *json.Encoder, terminalReader *bufio.Reader) {
 
 // after connecting to the server, the client will be prompted to enter a username
 func authenticate(decoder *json.Decoder, encoder *json.Encoder, terminalReader *bufio.Reader) error {
+	passedServerAuth := false
+
 	for {
 		var message protocol.Message
 
@@ -126,14 +128,27 @@ func authenticate(decoder *json.Decoder, encoder *json.Encoder, terminalReader *
 
 		switch message.Type {
 
+		case "server_password_prompt":
+			if err := promptAndSendServerPassword(encoder, terminalReader); err != nil {
+				return err
+			}
+
 		case "auth_prompt":
+			passedServerAuth = true
 			if err := promptAndSendAuth(encoder, terminalReader); err != nil {
 				return err
 			}
+
 		case "error":
 			fmt.Println("Error: ", message.Message)
-			if err := promptAndSendAuth(encoder, terminalReader); err != nil {
-				return err
+			if passedServerAuth {
+				if err := promptAndSendAuth(encoder, terminalReader); err != nil {
+					return err
+				}
+			} else {
+				if err := promptAndSendServerPassword(encoder, terminalReader); err != nil {
+					return err
+				}
 			}
 
 		case "auth_success":
@@ -141,6 +156,7 @@ func authenticate(decoder *json.Decoder, encoder *json.Encoder, terminalReader *
 		}
 	}
 }
+
 
 func promptAndSendAuth(encoder *json.Encoder, terminalReader *bufio.Reader) error {
 	for {
@@ -190,6 +206,20 @@ func promptAndSendAuth(encoder *json.Encoder, terminalReader *bufio.Reader) erro
 			Password: strings.TrimSpace(password),
 		})
 	}
+}
+
+func promptAndSendServerPassword(encoder *json.Encoder, terminalReader *bufio.Reader) error {
+	fmt.Print("Server Password: ")
+
+	password, err := terminalReader.ReadString('\n')
+	if err != nil {
+		return err
+	}
+
+	return Send(encoder, protocol.Message{
+		Type:     "server_password",
+		Password: strings.TrimSpace(password),
+	})
 }
 
 func renderUsers(usernames []string) {

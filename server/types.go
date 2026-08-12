@@ -48,6 +48,8 @@ type Server struct {
 
 	owner string
 
+	password string
+
 	clients map[string]*Client
 	conns   map[net.Conn]struct{}
 

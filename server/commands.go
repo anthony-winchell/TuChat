@@ -65,6 +65,26 @@ func (s *Server) commandServerRename(client *Client, name string) bool {
 	return false
 }
 
+func (s *Server) commandSetServerPassword(client *Client, password string) bool {
+	if err := s.RequireServerOwner(client); err != nil {
+		sendError(client, err.Error())
+		return false
+	}
+
+	if err := s.SetPassword(password); err != nil {
+		sendError(client, err.Error())
+		return false
+	}
+
+	if err := s.SaveConfig(); err != nil {
+		log.Println("Failed to save config: " + err.Error())
+	}
+
+	sendSystem(client, "Server password updated")
+
+	return false
+}
+
 func (s *Server) commandAnnounce(client *Client, message string) bool {
 	if err := s.RequireServerOwner(client); err != nil {
 		sendError(client, err.Error())
@@ -706,6 +726,28 @@ func (s *Server) InitializeCommands() {
 				return s.commandAnnounce(c, strings.Join(args, " "))
 			},
 			Usage: "/announce <message>",
+		},
+		"/setpassword": {
+			Description: "Sets or clears the room password (owner only)",
+			Handler: func(s *Server, c *Client, args []string) bool {
+				password := ""
+				if len(args) > 0 {
+					password = strings.Join(args, " ")
+				}
+				return s.commandSetPassword(c, password)
+			},
+			Usage: "/setpassword [password] (omit to clear)",
+		},
+		"/setserverpassword": {
+			Description: "Sets or clears the server password (owner only)",
+			Handler: func(s *Server, c *Client, args []string) bool {
+				password := ""
+				if len(args) > 0 {
+					password = strings.Join(args, " ")
+				}
+				return s.commandSetServerPassword(c, password)
+			},
+			Usage: "/setserverpassword [password] (omit to clear)",
 		},
 	}
 }
