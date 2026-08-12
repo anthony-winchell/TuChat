@@ -11,7 +11,7 @@ import (
 	"tuchat/protocol"
 )
 
-func main() {
+func client() {
 	//connect to the server
 	conn, err := connectToServer()
 	if err != nil {
