@@ -85,6 +85,25 @@ func (s *Server) commandSetServerPassword(client *Client, password string) bool 
 	return false
 }
 
+func (s *Server) commandSetWelcomeMessage(client *Client, message string) bool {
+	if err := s.RequireServerOwner(client); err != nil {
+		sendError(client, err.Error())
+		return false
+	}
+
+	message = strings.ReplaceAll(message, `\n`, "\n")
+
+	s.SetWelcomeMessage(message)
+
+	if err := s.SaveConfig(); err != nil {
+		log.Println("Failed to save config: " + err.Error())
+	}
+
+	sendSystem(client, "Welcome message updated")
+
+	return false
+}
+
 func (s *Server) commandAnnounce(client *Client, message string) bool {
 	if err := s.RequireServerOwner(client); err != nil {
 		sendError(client, err.Error())
@@ -748,6 +767,17 @@ func (s *Server) InitializeCommands() {
 				return s.commandSetServerPassword(c, password)
 			},
 			Usage: "/setserverpassword [password] (omit to clear)",
+		},
+		"/setwelcome": {
+			Description: "Sets the welcome message for new users (owner only)",
+			Handler: func(s *Server, c *Client, args []string) bool {
+				message := ""
+				if len(args) > 0 {
+					message = strings.Join(args, " ")
+				}
+				return s.commandSetWelcomeMessage(c, message)
+			},
+			Usage: "/setwelcome <message> (omit to reset to default. {server} and {nickname} will replace with server name and user's nickname)",
 		},
 	}
 }

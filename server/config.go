@@ -37,6 +37,7 @@ func (s *Server) SaveConfig() error {
 		ServerName: s.Name(),
 		Owner:      s.Owner(),
 		ServerPasswordHash: s.PasswordHash(),
+		WelcomeMessage:     s.WelcomeMessage(),
 	}
 
 	for _, user := range s.usersSnapshot() {
@@ -82,6 +83,7 @@ func (s *Server) loadConfig() error {
 	s.SetName(config.ServerName)
 	s.SetOwner(config.Owner)
 	s.RestorePasswordHash(config.ServerPasswordHash)
+	s.SetWelcomeMessage(config.WelcomeMessage)
 
 	for _, roomConfig := range config.Rooms {
 		room := NewRoom(roomConfig.Name)

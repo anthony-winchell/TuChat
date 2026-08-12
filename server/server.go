@@ -14,6 +14,8 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+const defaultWelcomeMessage = "Welcome to {server}, {nickname}!\n\nType /help for commands."
+
 func (s *Server) Start() {
 	log.Println("Server started")
 	for {
@@ -56,7 +58,7 @@ func (s *Server) SetPassword(password string) error {
 
 func (s *Server) HasPassword() bool {
 	s.mu.RLock()
-	s.mu.RUnlock()
+	defer s.mu.RUnlock()
 
 	return s.password != ""
 }
@@ -86,19 +88,57 @@ func (s *Server) RestorePasswordHash(hash string) {
 	s.password = hash
 }
 
+func (s *Server) WelcomeMessage() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.welcomeMessage
+}
+
+func (s *Server) SetWelcomeMessage(message string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.welcomeMessage = message
+}
+
 func (s *Server) sendWelcome(client *Client) {
-	if err := client.Send(protocol.Message{
-		Type: "welcome",
-		Message: fmt.Sprintf(
-			"%s\nWelcome to %s, %s!\n\nType /help for commands.\n%s",
-			strings.Repeat("=", 35),
-			s.name,
-			client.User().Nickname(),
-			strings.Repeat("=", 35),
-		),
-	}); err != nil {
+	template := s.WelcomeMessage()
+
+	if template == "" {
+		template = defaultWelcomeMessage
+	}
+
+	replacer := strings.NewReplacer(
+		"{server}", s.Name(),
+		"{nickname}", client.User().Nickname(),
+	)
+
+	body := replacer.Replace(template)
+	border := strings.Repeat("=", borderWidth(body))
+
+	if err := client.Send(
+		protocol.Message{
+			Type: "welcome",
+			Message: border + "\n" + body + "\n" + border,
+		},
+	); err != nil {
 		log.Println(err)
 	}
+}
+
+func borderWidth(body string) int {
+	const minWidth = 20
+
+	width := minWidth
+
+	for _, line := range strings.Split(body, "\n") {
+		if len(line) > width {
+			width = len(line)
+		}
+	}
+
+	return width
 }
 
 func (s *Server) configureName() {

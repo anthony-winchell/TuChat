@@ -46,6 +46,8 @@ type Server struct {
 
 	name string
 
+	welcomeMessage string
+
 	owner string
 
 	password string
