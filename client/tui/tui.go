@@ -4,10 +4,12 @@ import (
 	"encoding/json"
 	"net"
 	"strings"
+	"time"
 	"tuchat/protocol"
 
 	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/textinput"
+	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -21,6 +23,12 @@ type Model struct {
 	pendingUser string
 
 	authMenu list.Model
+
+	chatLog   []string
+	viewport  viewport.Model
+	width     int
+	height    int
+	chatInput textinput.Model
 
 	decoder *json.Decoder
 	encoder *json.Encoder
@@ -90,9 +98,19 @@ func New() Model {
 	authMenu.SetShowStatusBar(false)
 	authMenu.SetFilteringEnabled(false)
 
+	vp := viewport.New(0, 0)
+	vp.Width = 60
+	vp.Height = 15
+
+	ci := textinput.New()
+	ci.Placeholder = "message or /command"
+	ci.Focus()
+
 	return Model{
-		input:    ti,
-		authMenu: authMenu,
+		input:     ti,
+		authMenu:  authMenu,
+		viewport:  vp,
+		chatInput: ci,
 	}
 }
 
@@ -126,6 +144,18 @@ func sendCmd(encoder *json.Encoder, msg protocol.Message) tea.Cmd {
 		}
 		return sentMsg{}
 	}
+}
+
+func (m *Model) refreshViewport() {
+	m.viewport.SetContent(strings.Join(m.chatLog, "\n"))
+	m.viewport.GotoBottom()
+}
+
+func formatTime(t time.Time) string {
+	if t.IsZero() {
+		return ""
+	}
+	return "[" + t.Format("15:04") + "] "
 }
 
 func (m Model) handleAuthKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -179,6 +209,36 @@ func (m Model) handleAuthKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m Model) handleChatKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if msg.String() != "enter" {
+		var cmd tea.Cmd
+		m.chatInput, cmd = m.chatInput.Update(msg)
+		return m, cmd
+	}
+
+	value := strings.TrimSpace(m.chatInput.Value())
+	m.chatInput.Reset()
+
+	if value == "" {
+		return m, nil
+	}
+
+	msgType := "chat"
+	if strings.HasPrefix(value, "/") {
+		msgType = "command"
+	}
+
+	if msgType == "chat" {
+		m.chatLog = append(m.chatLog, formatTime(time.Now())+"you: "+value)
+		m.refreshViewport()
+	}
+
+	return m, sendCmd(m.encoder, protocol.Message{
+		Type:    msgType,
+		Message: value,
+	})
+}
+
 func (m Model) Init() tea.Cmd {
 	return connectCmd()
 }
@@ -186,10 +246,21 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
+	case tea.WindowSizeMsg:
+		m.width = msg.Width
+		m.height = msg.Height
+
+		m.viewport.Width = msg.Width - 4
+		m.viewport.Height = msg.Height - 6
+
+		m.authMenu.SetSize(msg.Width-4, msg.Height-6)
+
+		m.refreshViewport()
+		return m, nil
+
 	case connectedMsg:
 		m.decoder = msg.decoder
 		m.encoder = msg.encoder
-
 		return m, listenCmd(m.decoder)
 
 	case connErrMsg:
@@ -200,6 +271,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case "auth_success":
 			m.screen = screenChat
+
+		case "chat":
+			m.chatLog = append(m.chatLog, formatTime(msg.Timestamp)+msg.Nickname+": "+msg.Message)
+			m.refreshViewport()
+
+		case "pm":
+			m.chatLog = append(m.chatLog, formatTime(msg.Timestamp)+"[PM "+msg.Nickname+" -> "+msg.Target+"] "+msg.Message)
+			m.refreshViewport()
+
+		case "system", "welcome", "announcement":
+			m.chatLog = append(m.chatLog, msg.Message)
+			m.refreshViewport()
+
+		case "join":
+			m.chatLog = append(m.chatLog, msg.Nickname+" joined the chat")
+			m.refreshViewport()
+
+		case "leave":
+			m.chatLog = append(m.chatLog, msg.Nickname+" left the chat")
+			m.refreshViewport()
+
+		case "users":
+			m.chatLog = append(m.chatLog, "Users: "+strings.Join(msg.Users, ", "))
+			m.refreshViewport()
+
+		case "error":
+			m.chatLog = append(m.chatLog, "Error: "+msg.Message)
+			m.refreshViewport()
 		}
 		return m, listenCmd(m.decoder)
 
@@ -212,9 +311,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m.handleAuthKey(msg)
 		}
 
-		var cmd tea.Cmd
-		m.input, cmd = m.input.Update(msg)
-		return m, cmd
+		return m.handleChatKey(msg)
 
 	case sentMsg:
 		return m, nil
@@ -230,12 +327,15 @@ func (m Model) View() string {
 	if m.err != nil {
 		return "connection error: " + m.err.Error()
 	}
+
 	if m.screen == screenChat {
-		return "you're in chat now\n"
+		return m.viewport.View() + "\n\n" + m.chatInput.View()
 	}
+
 	if m.authStage == stageMenu {
 		return m.authMenu.View()
 	}
+
 	label := m.authChoice + " - username:"
 	if m.authStage == stagePassword {
 		label = m.authChoice + " - password:"
