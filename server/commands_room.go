@@ -1,10 +1,7 @@
 package main 
 
 import (
-	"fmt"
-	"strconv"
 	"tuchat/protocol"
-	"strings"
 	"log"
 )
 
@@ -12,15 +9,16 @@ func (s *Server) commandRoom(client *Client) bool {
 
 	room := client.Room()
 
-	sendSystem(client, fmt.Sprintf("Room: %s", room.Name()))
-
-	sendSystem(client, fmt.Sprintf("Owner: %s", room.Owner()))
-
-	sendSystem(client, fmt.Sprintf("Admins: %s", strings.Join(room.AdminsUsernames(), ", ")))
-
-	sendSystem(client, fmt.Sprintf("Topic: %s", room.Topic()))
-
-	sendSystem(client, fmt.Sprintf("Users: %d", room.Size()))
+	if err := client.Send(protocol.Message{
+		Type:          "roominfo",
+		Message:       room.Name(),
+		RoomOwner:     room.Owner(),
+		RoomAdmins:    room.AdminsUsernames(),
+		RoomTopic:     room.Topic(),
+		RoomUserCount: room.Size(),
+	}); err != nil {
+		log.Println(err)
+	}
 
 	return false
 }
@@ -28,10 +26,19 @@ func (s *Server) commandRoom(client *Client) bool {
 func (s *Server) commandRooms(client *Client) bool {
 	rooms := s.RoomsSnapshot()
 
-	sendSystem(client, fmt.Sprintf("Rooms: %d", len(rooms)))
-
+	summaries := make([]protocol.RoomSummary, 0, len(rooms))
 	for _, room := range rooms {
-		sendSystem(client, fmt.Sprintf("- %s", room.Name()+"\n   Users: "+strconv.Itoa(room.Size())))
+		summaries = append(summaries, protocol.RoomSummary{
+			Name: room.Name(),
+			Users: room.Size(),
+		})
+	}
+
+	if err := client.Send(protocol.Message{
+	 	Type: "rooms",
+		Rooms: summaries, 
+	}); err != nil {
+		log.Println(err)
 	}
 
 	return false
