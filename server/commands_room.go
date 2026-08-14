@@ -31,6 +31,7 @@ func (s *Server) commandRooms(client *Client) bool {
 		summaries = append(summaries, protocol.RoomSummary{
 			Name: room.Name(),
 			Users: room.Size(),
+			HasPassword: room.HasPassword(),
 		})
 	}
 

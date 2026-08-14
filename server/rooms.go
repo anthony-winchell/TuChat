@@ -89,6 +89,7 @@ func (r *Room) broadcastUserList() {
 			Nickname: client.User().Nickname(),
 			Admin: r.IsAdmin(username),
 			Owner: r.IsOwner(username),
+
 		})
 	}
 	r.Broadcast(protocol.Message{
@@ -124,6 +125,7 @@ func (s *Server) broadcastRoomList() {
 		summaries = append(summaries, protocol.RoomSummary{
 			Name: room.Name(),
 			Users: room.Size(),
+			HasPassword: room.HasPassword(),
 		})
 	}
 

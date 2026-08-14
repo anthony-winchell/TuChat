@@ -67,7 +67,11 @@ func (m Model) renderSidebar() string {
 	case tabRooms:
 		b.WriteString("ROOMS\n")
 		for _, r := range m.rooms {
-			b.WriteString(fmt.Sprintf("• %s (%d)\n", r.Name, r.Users))
+			lock := ""
+			if r.HasPassword {
+				lock = "🔒"
+			}
+			b.WriteString(fmt.Sprintf("• %s (%d)%s\n", r.Name, r.Users, lock))
 		}
 	}
 

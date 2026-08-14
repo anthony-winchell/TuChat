@@ -27,6 +27,7 @@ type Message struct {
 type RoomSummary struct {
 	Name string `json:"name"`
 	Users int `json:"users"`
+	HasPassword bool `json:"has_password"`
 }
 
 type UserSummary struct {
