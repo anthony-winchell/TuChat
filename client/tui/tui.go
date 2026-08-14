@@ -32,6 +32,7 @@ type Model struct {
 	activeSidebar sidebarTab
 	users         []protocol.UserSummary
 	rooms         []protocol.RoomSummary
+	selfNickname string
 
 	roomName  string
 	roomTopic string

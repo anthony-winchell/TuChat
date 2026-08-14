@@ -43,6 +43,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case "auth_success":
 			m.screen = screenChat
+			m.selfNickname = msg.Nickname
 			return m, tea.Batch(listenCmd(m.decoder), sendCmd(m.encoder, protocol.Message{
 				Type:    "command",
 				Message: "/users",
@@ -51,12 +52,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				Message: "/room",
 			}))
 
+		case "nick_success":
+			m.selfNickname = msg.Nickname
+
 		case "chat":
 			m.chatLog = append(m.chatLog, chatEntry{
 				kind: "chat",
 				timestamp: msg.Timestamp,
 				nickname: msg.Nickname, 
 				text: msg.Message,
+				self: msg.Nickname == m.selfNickname,
 			})
 			m.refreshViewport()
 
@@ -67,6 +72,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				nickname: msg.Nickname,
 				target: msg.Target,
 				text: msg.Message,
+				self: msg.Nickname == m.selfNickname,
 			})
 			m.refreshViewport()
 
@@ -223,7 +229,7 @@ func (m Model) handleChatKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.chatLog = append(m.chatLog, chatEntry{
 			kind: "chat",
 			timestamp: time.Now(),
-			nickname: "you",
+			nickname: m.selfNickname,
 			text: value,
 			self: true,
 		})

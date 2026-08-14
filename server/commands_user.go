@@ -44,6 +44,13 @@ func (s *Server) commandNick(client *Client, args []string) bool {
 		Message:  oldNickname + " changed their nickname to " + nickname,
 	}, nil)
 
+	if err := client.Send(protocol.Message{
+		Type: "nick_success",
+		Nickname: nickname,
+	}); err != nil {
+		log.Println("Failed to send nick success:", err)
+	}
+
 	room.broadcastUserList()
 
 	return false

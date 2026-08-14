@@ -122,6 +122,7 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 			}
 			if err := client.Send(protocol.Message{
 				Type: "auth_success",
+				Nickname: client.User().Nickname(),
 			}); err != nil {
 				return nil, err
 			}
