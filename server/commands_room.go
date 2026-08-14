@@ -255,5 +255,7 @@ func (s *Server) commandKickUser(client *Client, targetNickname string) bool {
 		Message: client.User().Nickname() + " kicked " + target.User().Nickname(),
 	}, nil)
 
+	room.broadcastUserList()
+
 	return false
 }

@@ -11,6 +11,7 @@ import (
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 const serverAddr = "localhost:8080"
@@ -29,6 +30,9 @@ type Model struct {
 	width     int
 	height    int
 	chatInput textinput.Model
+
+	activeSidebar sidebarTab
+	users         []string
 
 	decoder *json.Decoder
 	encoder *json.Encoder
@@ -69,6 +73,25 @@ type sendErrMsg struct {
 }
 
 type authOption string
+
+type sidebarTab int
+
+const (
+	tabUsers sidebarTab = iota
+	tabRooms
+	tabAdmin
+)
+
+func (m Model) renderSidebar() string {
+	var b strings.Builder
+
+	b.WriteString("USERS\n")
+	for _, user := range m.users {
+		b.WriteString("• " + user + "\n")
+	}
+
+	return b.String()
+}
 
 func (a authOption) Title() string {
 	return string(a)
@@ -250,7 +273,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.width = msg.Width
 		m.height = msg.Height
 
-		m.viewport.Width = msg.Width - 4
+		sidebarWidth := 20
+		m.viewport.Width = msg.Width - sidebarWidth - 4
 		m.viewport.Height = msg.Height - 6
 
 		m.authMenu.SetSize(msg.Width-4, msg.Height-6)
@@ -271,6 +295,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.Type {
 		case "auth_success":
 			m.screen = screenChat
+			return m, tea.Batch(listenCmd(m.decoder), sendCmd(m.encoder, protocol.Message{
+				Type:    "command",
+				Message: "/users",
+			}))
 
 		case "chat":
 			m.chatLog = append(m.chatLog, formatTime(msg.Timestamp)+msg.Nickname+": "+msg.Message)
@@ -293,7 +321,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.refreshViewport()
 
 		case "users":
-			m.chatLog = append(m.chatLog, "Users: "+strings.Join(msg.Users, ", "))
+			m.users = msg.Users
 			m.refreshViewport()
 
 		case "error":
@@ -329,7 +357,16 @@ func (m Model) View() string {
 	}
 
 	if m.screen == screenChat {
-		return m.viewport.View() + "\n\n" + m.chatInput.View()
+		chatPane := m.viewport.View()
+		sidebar := m.renderSidebar()
+
+		body := lipgloss.JoinHorizontal(
+			lipgloss.Top,
+			chatPane,
+			sidebar,
+		)
+
+		return body + "\n\n" + m.chatInput.View()
 	}
 
 	if m.authStage == stageMenu {

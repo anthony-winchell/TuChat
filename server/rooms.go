@@ -34,6 +34,8 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 			Type:    "system",
 			Message: client.User().Nickname() + " left the room",
 		}, client)
+
+		oldRoom.broadcastUserList()
 	}
 
 	room.Add(client)
@@ -65,7 +67,23 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 		Message: client.User().Nickname() + " joined the room",
 	}, client)
 
+	room.broadcastUserList()
+
 	return nil
+}
+
+func (r *Room) broadcastUserList() {
+	users := r.Users()
+	names := make([]string, 0, len(users))
+
+	for _, user := range users {
+		names = append(names, user.User().Nickname())
+	}
+
+	r.Broadcast(protocol.Message{
+		Type:  "users",
+		Users: names,
+	}, nil)
 }
 
 func (s *Server) FindOrCreateRoom(name string) (*Room, bool, error) {
@@ -485,6 +503,8 @@ func (s *Server) DeleteRoom(r *Room) error {
 		r.Remove(client)
 		general.Add(client)
 	}
+
+	general.broadcastUserList()
 
 	return nil
 }
