@@ -72,6 +72,7 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 	}, client)
 
 	room.broadcastUserList()
+	room.broadcastRoomInfo()
 
 	return nil
 }
@@ -532,6 +533,8 @@ func (s *Server) DeleteRoom(r *Room) error {
 
 	general.broadcastUserList()
 	s.broadcastRoomList()
+	general.broadcastRoomInfo()
+	general.broadcastUserList()
 
 	return nil
 }

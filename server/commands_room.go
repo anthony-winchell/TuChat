@@ -75,6 +75,9 @@ func (s *Server) commandRenameRoom(name string, client *Client) bool {
 		Type:    "system",
 		Message: client.User().Nickname() + " renamed the room to " + name,
 	}, nil)
+
+	room.broadcastRoomInfo()
+
 	return false
 }
 
@@ -95,6 +98,8 @@ func (s *Server) commandDeleteRoom(client *Client) bool {
 	if err := s.SaveConfig(); err != nil {
 		log.Println("Failed to save config: " + err.Error())
 	}
+
+	
 	return false
 }
 
@@ -128,6 +133,8 @@ func (s *Server) commandSetTopic(client *Client, topic string) bool {
 		Type:    "system",
 		Message: client.User().Nickname() + " changed the topic to: " + topic,
 	}, nil)
+
+	room.broadcastRoomInfo()
 
 	return false
 }
@@ -262,4 +269,16 @@ func (s *Server) commandKickUser(client *Client, targetNickname string) bool {
 	room.broadcastUserList()
 
 	return false
+}
+
+
+func (r *Room) broadcastRoomInfo() {
+	r.Broadcast(protocol.Message{
+		Type:          "roominfo",
+		Message:       r.Name(),
+		RoomOwner:     r.Owner(),
+		RoomAdmins:    r.AdminsUsernames(),
+		RoomTopic:     r.Topic(),
+		RoomUserCount: r.Size(),
+	}, nil)
 }
