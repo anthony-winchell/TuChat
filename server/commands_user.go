@@ -44,6 +44,8 @@ func (s *Server) commandNick(client *Client, args []string) bool {
 		Message:  oldNickname + " changed their nickname to " + nickname,
 	}, nil)
 
+	room.broadcastUserList()
+
 	return false
 }
 
@@ -93,16 +95,22 @@ func (s *Server) commandPM(client *Client, args []string) bool {
 }
 
 func (s *Server) commandUsers(client *Client) bool {
-	users := client.Room().Users()
-	usernames := make([]string, 0, len(users))
+	room := client.Room()
+	clients := room.Users()
 
-	for _, user := range users {
-		usernames = append(usernames, user.User().Nickname())
+	summaries := make([]protocol.UserSummary, 0, len(clients))
+	for _, c := range clients {
+		username := c.User().Username()
+		summaries = append(summaries, protocol.UserSummary{
+			Nickname: c.User().Nickname(),
+			Admin:    room.IsAdmin(username),
+			Owner:    room.IsOwner(username),
+		})
 	}
 
 	if err := client.Send(protocol.Message{
 		Type:  "users",
-		Users: usernames,
+		Users: summaries,
 	}); err != nil {
 		log.Println(err)
 	}

@@ -17,6 +17,10 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 		return err
 	}
 
+	if newRoom {
+		s.broadcastRoomList()
+	}
+
 	if client.Room() == room {
 		return ErrAlreadyInRoom
 	}
@@ -72,17 +76,23 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 	return nil
 }
 
+
 func (r *Room) broadcastUserList() {
-	users := r.Users()
-	names := make([]string, 0, len(users))
+	clients := r.Users()
 
-	for _, user := range users {
-		names = append(names, user.User().Nickname())
+	summaries := make([]protocol.UserSummary, 0, len(clients))
+
+	for _, client := range clients {
+		username := client.User().Username()
+		summaries = append(summaries, protocol.UserSummary{
+			Nickname: client.User().Nickname(),
+			Admin: r.IsAdmin(username),
+			Owner: r.IsOwner(username),
+		})
 	}
-
 	r.Broadcast(protocol.Message{
-		Type:  "users",
-		Users: names,
+		Type: "users",
+		Users: summaries,
 	}, nil)
 }
 
@@ -104,6 +114,22 @@ func (s *Server) FindOrCreateRoom(name string) (*Room, bool, error) {
 	s.rooms[name] = room
 
 	return room, true, nil
+}
+
+func (s *Server) broadcastRoomList() {
+	summaries := make([]protocol.RoomSummary, 0, len(s.rooms))
+
+	for _, room := range s.RoomsSnapshot() {
+		summaries = append(summaries, protocol.RoomSummary{
+			Name: room.Name(),
+			Users: room.Size(),
+		})
+	}
+
+	s.sendToAll(protocol.Message{
+		Type: "rooms",
+		Rooms: summaries,
+	}, nil)
 }
 
 func (r *Room) Remove(client *Client) {
@@ -505,6 +531,7 @@ func (s *Server) DeleteRoom(r *Room) error {
 	}
 
 	general.broadcastUserList()
+	s.broadcastRoomList()
 
 	return nil
 }

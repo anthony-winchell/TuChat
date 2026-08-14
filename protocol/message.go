@@ -12,7 +12,7 @@ type Message struct {
 
 	Message string `json:"message,omitempty"`
 
-	Users []string `json:"users,omitempty"`
+	Users []UserSummary `json:"users,omitempty"`
 
 	Rooms []RoomSummary `json:"rooms,omitempty"`
 	RoomOwner string `json:"room_owner,omitempty"`
@@ -27,4 +27,10 @@ type Message struct {
 type RoomSummary struct {
 	Name string `json:"name"`
 	Users int `json:"users"`
+}
+
+type UserSummary struct {
+	Nickname string `json:"nickname"`
+	Admin bool `json:"admin"`
+	Owner bool `json:"owner"`
 }

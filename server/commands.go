@@ -246,6 +246,26 @@ func (s *Server) InitializeCommands() {
 			},
 			Usage: "/setwelcome <message> (omit to reset to default. {server} and {nickname} will replace with server name and user's nickname)",
 		},
+		"/addadmin": {
+			Description: "Adds an admin to the room (owner only)",
+			Handler: func(s *Server, c *Client, args []string) bool {
+				if !requireArgs(c, args, 1, "/addadmin <username>") {
+					return false
+				}
+				return s.commandAddAdmin(c, args[0])
+			},
+			Usage: "/addadmin <username>",
+		},
+		"/removeadmin": {
+			Description: "Removes an admin from the room (owner only)",
+			Handler: func(s *Server, c *Client, args []string) bool {
+				if !requireArgs(c, args, 1, "/removeadmin <username>") {
+					return false
+				}
+				return s.commandRemoveAdmin(c, args[0])
+			},
+			Usage: "/removeadmin <username>",
+		},
 	}
 }
 

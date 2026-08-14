@@ -158,6 +158,8 @@ func (s *Server) commandAddAdmin(client *Client, targetUsername string) bool {
 		Message: client.User().Nickname() + " made " + target.User().Nickname() + " admin",
 	}, nil)
 
+	room.broadcastUserList()
+
 	return false
 }
 
@@ -185,6 +187,8 @@ func (s *Server) commandRemoveAdmin(client *Client, targetUsername string) bool 
 		Type:    "system",
 		Message: target.User().Nickname() + "s admin status was revoked by " + client.User().Nickname(),
 	}, nil)
+
+	room.broadcastUserList()
 
 	return false
 }

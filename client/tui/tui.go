@@ -12,6 +12,7 @@ import (
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"fmt"
 )
 
 const serverAddr = "localhost:8080"
@@ -32,7 +33,8 @@ type Model struct {
 	chatInput textinput.Model
 
 	activeSidebar sidebarTab
-	users         []string
+	users         []protocol.UserSummary
+	rooms         []protocol.RoomSummary
 
 	decoder *json.Decoder
 	encoder *json.Encoder
@@ -79,15 +81,28 @@ type sidebarTab int
 const (
 	tabUsers sidebarTab = iota
 	tabRooms
-	tabAdmin
 )
 
 func (m Model) renderSidebar() string {
 	var b strings.Builder
 
-	b.WriteString("USERS\n")
-	for _, user := range m.users {
-		b.WriteString("• " + user + "\n")
+	switch m.activeSidebar {
+	case tabUsers: 
+	  b.WriteString("USERS\n")
+		for _, user := range m.users {
+			line := "• " + user.Nickname
+			if user.Owner {
+				line += " (owner)"
+			} else if user.Admin {
+				line += " (admin)"
+			}
+			b.WriteString(line + "\n")
+		}
+	case tabRooms:
+		b.WriteString("ROOMS\n")
+		for _, r := range m.rooms {
+			b.WriteString(fmt.Sprintf("• %s (%d)\n", r.Name, r.Users))
+		}
 	}
 
 	return b.String()
@@ -322,7 +337,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "users":
 			m.users = msg.Users
-			m.refreshViewport()
+
+		case "rooms":
+			m.rooms = msg.Rooms
 
 		case "error":
 			m.chatLog = append(m.chatLog, "Error: "+msg.Message)
@@ -333,6 +350,17 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
+		}
+
+		if msg.String() == "tab" {
+			m.activeSidebar = (m.activeSidebar + 1) % 2
+			if m.activeSidebar == tabRooms {
+				return m, sendCmd(m.encoder, protocol.Message{
+					Type:    "command",
+					Message: "/rooms",
+				})
+			}
+			return m, nil
 		}
 
 		if m.screen == screenAuth {
