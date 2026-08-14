@@ -24,14 +24,17 @@ func (m Model) View() string {
 			header = "#" + m.roomName
 		}
 
-		body := lipgloss.JoinHorizontal(lipgloss.Top, m.viewport.View(), m.renderSidebar())
+		body := lipgloss.JoinHorizontal(
+			lipgloss.Top, 
+			viewportStyle.Render(m.viewport.View()), 
+			sidebarStyle.Render(m.renderSidebar()))
 
-		return header + "\n\n" + body + "\n\n" + m.chatInput.View()
+		return headerStyle.Render(header) + "\n\n" + body + "\n\n" + inputStyle.Render(m.chatInput.View())
 	}
 
 	var errorLine string
 	if m.authError != "" {
-		errorLine = "Error: " + m.authError + "\n\n"
+		errorLine = errorStyle.Render("Error: " + m.authError + "\n\n")
 	}
 
 	if m.authStage == stageMenu {
@@ -65,6 +68,41 @@ func (m Model) renderSidebar() string {
 		b.WriteString("ROOMS\n")
 		for _, r := range m.rooms {
 			b.WriteString(fmt.Sprintf("• %s (%d)\n", r.Name, r.Users))
+		}
+	}
+
+	return b.String()
+}
+
+func renderEntries(entries []chatEntry) string {
+	var b strings.Builder
+
+	for _, e := range entries {
+		ts := timestampStyle.Render(formatTime(e.timestamp))
+
+		switch e.kind {
+		case "chat":
+			name := nicknameStyle
+			if e.self {
+				name = selfNickStyle
+			}
+			b.WriteString(ts + name.Render(e.nickname) + ": " + e.text + "\n")
+
+		case "pm":
+			label := fmt.Sprintf("PM %s -> %s", e.nickname, e.target)
+			b.WriteString(ts + pmStyle.Render(label) + ": " + e.text + "\n")
+
+		case "system":
+			b.WriteString(systemStyle.Render(e.text) + "\n")
+
+		case "error":
+			b.WriteString(errorStyle.Render("Error: "+e.text) + "\n")
+
+		case "join":
+			b.WriteString(joinLeaveStyle.Render(e.nickname+" joined the chat") + "\n")
+
+		case "leave":
+			b.WriteString(joinLeaveStyle.Render(e.nickname+" left the chat") + "\n")
 		}
 	}
 

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"encoding/json"
+	"time"
 	"tuchat/protocol"
 
 	"github.com/charmbracelet/bubbles/list"
@@ -22,7 +23,7 @@ type Model struct {
 
 	authMenu list.Model
 
-	chatLog   []string
+	chatLog   []chatEntry
 	viewport  viewport.Model
 	width     int
 	height    int
@@ -39,6 +40,15 @@ type Model struct {
 	encoder *json.Encoder
 	input   textinput.Model
 	err     error
+}
+
+type chatEntry struct {
+	kind      string
+	timestamp time.Time
+	nickname  string
+	target    string
+	text      string
+	self      bool
 }
 
 type authStage int

@@ -52,23 +52,43 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}))
 
 		case "chat":
-			m.chatLog = append(m.chatLog, formatTime(msg.Timestamp)+msg.Nickname+": "+msg.Message)
+			m.chatLog = append(m.chatLog, chatEntry{
+				kind: "chat",
+				timestamp: msg.Timestamp,
+				nickname: msg.Nickname, 
+				text: msg.Message,
+			})
 			m.refreshViewport()
 
 		case "pm":
-			m.chatLog = append(m.chatLog, formatTime(msg.Timestamp)+"[PM "+msg.Nickname+" -> "+msg.Target+"] "+msg.Message)
+			m.chatLog = append(m.chatLog, chatEntry{
+				kind: "pm",
+				timestamp: msg.Timestamp,
+				nickname: msg.Nickname,
+				target: msg.Target,
+				text: msg.Message,
+			})
 			m.refreshViewport()
 
 		case "system", "welcome", "announcement":
-			m.chatLog = append(m.chatLog, msg.Message)
+			m.chatLog = append(m.chatLog, chatEntry{
+				kind: "system",
+				text: msg.Message,
+			})
 			m.refreshViewport()
 
 		case "join":
-			m.chatLog = append(m.chatLog, msg.Nickname+" joined the chat")
+			m.chatLog = append(m.chatLog, chatEntry{
+				kind: "join",
+				nickname: msg.Nickname,
+			})
 			m.refreshViewport()
 
 		case "leave":
-			m.chatLog = append(m.chatLog, msg.Nickname+" left the chat")
+			m.chatLog = append(m.chatLog, chatEntry{
+				kind: "leave",
+				nickname: msg.Nickname,
+			})
 			m.refreshViewport()
 
 		case "users":
@@ -85,7 +105,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			if m.screen == screenAuth {
 				m.authError = msg.Message
 			} else {
-				m.chatLog = append(m.chatLog, msg.Message)
+				m.chatLog = append(m.chatLog, chatEntry{
+					kind: "error",
+					text: msg.Message,
+				})
 				m.refreshViewport()
 			}
 		}
@@ -197,7 +220,13 @@ func (m Model) handleChatKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	if msgType == "chat" {
-		m.chatLog = append(m.chatLog, formatTime(time.Now())+"you: "+value)
+		m.chatLog = append(m.chatLog, chatEntry{
+			kind: "chat",
+			timestamp: time.Now(),
+			nickname: "you",
+			text: value,
+			self: true,
+		})
 		m.refreshViewport()
 	}
 
@@ -215,7 +244,7 @@ func formatTime(t time.Time) string {
 }
 
 func (m *Model) refreshViewport() {
-	m.viewport.SetContent(strings.Join(m.chatLog, "\n"))
+	m.viewport.SetContent(renderEntries(m.chatLog))
 	m.viewport.GotoBottom()
 }
 
