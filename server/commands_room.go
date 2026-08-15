@@ -1,9 +1,12 @@
-package main 
+package main
 
 import (
-	"tuchat/protocol"
+	"errors"
 	"log"
+	"tuchat/protocol"
 )
+
+var ErrIncorrectPassword = errors.New("incorrect password")
 
 func (s *Server) commandRoom(client *Client) bool {
 
@@ -47,6 +50,15 @@ func (s *Server) commandRooms(client *Client) bool {
 
 func (s *Server) commandJoinRoom(client *Client, roomName string, password string) bool {
 	if err := s.JoinRoom(client, roomName, password); err != nil {
+		if errors.Is(err, ErrIncorrectPassword) {
+			if err := client.Send(protocol.Message{
+				Type: "join_password_required",
+				Message: roomName,
+			}); err != nil {
+				log.Println(err)
+			}
+			return false
+		}
 		sendError(client, err.Error())
 		return false
 	}

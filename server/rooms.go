@@ -26,7 +26,7 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 	}
 
 	if !room.CheckPassword(password) {
-		return errors.New("incorrect password")
+		return ErrIncorrectPassword
 	}
 
 	oldRoom := client.Room()
@@ -119,9 +119,11 @@ func (s *Server) FindOrCreateRoom(name string) (*Room, bool, error) {
 }
 
 func (s *Server) broadcastRoomList() {
-	summaries := make([]protocol.RoomSummary, 0, len(s.rooms))
+	rooms := s.RoomsSnapshot()
 
-	for _, room := range s.RoomsSnapshot() {
+	summaries := make([]protocol.RoomSummary, 0, len(rooms))
+
+	for _, room := range rooms {
 		summaries = append(summaries, protocol.RoomSummary{
 			Name: room.Name(),
 			Users: room.Size(),

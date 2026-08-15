@@ -2,6 +2,7 @@ package tui
 
 import(
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/bubbles/textinput"
 	"tuchat/protocol"
 	"strings"
 	"time"
@@ -18,16 +19,23 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case tea.WindowSizeMsg:
+
+		const (
+		sidebarWidth = 24
+		headerHeight = 1
+		inputHeight  = 3
+		)
+
 		m.width = msg.Width
 		m.height = msg.Height
 
-		sidebarWidth := 20
-		m.viewport.Width = msg.Width - sidebarWidth - 4
-		m.viewport.Height = msg.Height - 6
-
 		m.authMenu.SetSize(msg.Width-4, msg.Height-6)
 
+		m.viewport.Width = msg.Width - sidebarWidth - 6
+		m.viewport.Height = msg.Height - 7
+
 		m.refreshViewport()
+
 		return m, nil
 
 	case connectedMsg:
@@ -55,6 +63,19 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "nick_success":
 			m.selfNickname = msg.Nickname
 
+		case "join_password_required":
+			m.awaitingRoomPassword = msg.Message
+
+			m.chatInput.EchoMode = textinput.EchoPassword
+			m.chatInput.Placeholder = "room password"
+			m.chatInput.Prompt = "🔒 "
+
+			m.chatLog = append(m.chatLog, chatEntry{
+				kind: "system",
+				text: "#" + msg.Message + " requires a password. Enter it or press Esc to cancel.",
+			})
+			m.refreshViewport()
+
 		case "chat":
 			m.chatLog = append(m.chatLog, chatEntry{
 				kind: "chat",
@@ -80,6 +101,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.chatLog = append(m.chatLog, chatEntry{
 				kind: "system",
 				text: msg.Message,
+				timestamp: time.Now(),
 			})
 			m.refreshViewport()
 
@@ -87,6 +109,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.chatLog = append(m.chatLog, chatEntry{
 				kind: "join",
 				nickname: msg.Nickname,
+				timestamp: time.Now(),
 			})
 			m.refreshViewport()
 
@@ -94,6 +117,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.chatLog = append(m.chatLog, chatEntry{
 				kind: "leave",
 				nickname: msg.Nickname,
+				timestamp: time.Now(),
 			})
 			m.refreshViewport()
 
@@ -207,6 +231,22 @@ func (m Model) handleAuthKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleChatKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
+	if m.awaitingRoomPassword != "" && msg.String() == "esc" {
+		m.awaitingRoomPassword = ""
+
+		m.chatInput.Reset()
+		m.chatInput.EchoMode = textinput.EchoNormal
+		m.chatInput.Placeholder = "message or /command"
+		m.chatInput.Prompt = "> "
+
+		m.chatLog = append(m.chatLog, chatEntry{
+			kind: "system",
+			text: "Cancelled join.",
+		})
+		m.refreshViewport()
+		return m, nil	
+	}
+	
 	if msg.String() != "enter" {
 		var cmd tea.Cmd
 		m.chatInput, cmd = m.chatInput.Update(msg)
@@ -220,20 +260,24 @@ func (m Model) handleChatKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
+	if m.awaitingRoomPassword != "" {
+		room := m.awaitingRoomPassword
+		m.awaitingRoomPassword = ""
+
+		m.chatInput.Reset()
+		m.chatInput.EchoMode = textinput.EchoNormal
+		m.chatInput.Placeholder = "message or /command"
+		m.chatInput.Prompt = "> "
+
+		return m, sendCmd(m.encoder, protocol.Message{
+			Type:    "command",
+			Message: "/join " + room + " " + value,
+		})
+	}
+
 	msgType := "chat"
 	if strings.HasPrefix(value, "/") {
 		msgType = "command"
-	}
-
-	if msgType == "chat" {
-		m.chatLog = append(m.chatLog, chatEntry{
-			kind: "chat",
-			timestamp: time.Now(),
-			nickname: m.selfNickname,
-			text: value,
-			self: true,
-		})
-		m.refreshViewport()
 	}
 
 	return m, sendCmd(m.encoder, protocol.Message{

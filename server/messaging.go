@@ -45,7 +45,7 @@ func (s *Server) broadcastMessage(text string, sender *Client) {
 		Nickname:  sender.User().Nickname(),
 		Message:   text,
 		Timestamp: time,
-	}, sender)
+	}, nil)
 }
 
 func (s *Server) leaveAlert(leaver *Client) {

@@ -35,6 +35,7 @@ type Model struct {
 	selfNickname string
 
 	roomName  string
+	awaitingRoomPassword string
 	roomTopic string
 
 	decoder *json.Decoder
@@ -79,6 +80,7 @@ func (m Model) Init() tea.Cmd {
 }
 
 func New() Model {
+
 	ti := textinput.New()
 	ti.Placeholder = "username"
 	ti.Focus()
@@ -100,6 +102,8 @@ func New() Model {
 
 	ci := textinput.New()
 	ci.Placeholder = "message or /command"
+	ci.EchoMode = textinput.EchoNormal
+	ci.Prompt = "> "
 	ci.Focus()
 
 	return Model{

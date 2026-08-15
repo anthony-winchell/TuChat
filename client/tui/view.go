@@ -90,23 +90,23 @@ func renderEntries(entries []chatEntry) string {
 			if e.self {
 				name = selfNickStyle
 			}
-			b.WriteString(ts + name.Render(e.nickname) + ": " + e.text + "\n")
+			b.WriteString(ts + name.Render(e.nickname) + "	" + e.text + "\n")
 
 		case "pm":
 			label := fmt.Sprintf("PM %s -> %s", e.nickname, e.target)
 			b.WriteString(ts + pmStyle.Render(label) + ": " + e.text + "\n")
 
 		case "system":
-			b.WriteString(systemStyle.Render(e.text) + "\n")
+			b.WriteString(ts + systemStyle.Render(e.text) + "\n")
 
 		case "error":
 			b.WriteString(errorStyle.Render("Error: "+e.text) + "\n")
 
 		case "join":
-			b.WriteString(joinLeaveStyle.Render(e.nickname+" joined the chat") + "\n")
+			b.WriteString(ts + joinLeaveStyle.Render(e.nickname+" joined the chat") + "\n")
 
 		case "leave":
-			b.WriteString(joinLeaveStyle.Render(e.nickname+" left the chat") + "\n")
+			b.WriteString(ts + joinLeaveStyle.Render(e.nickname+" left the chat") + "\n")
 		}
 	}
 
