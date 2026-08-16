@@ -32,15 +32,15 @@ func (s *Server) commandRooms(client *Client) bool {
 	summaries := make([]protocol.RoomSummary, 0, len(rooms))
 	for _, room := range rooms {
 		summaries = append(summaries, protocol.RoomSummary{
-			Name: room.Name(),
-			Users: room.Size(),
+			Name:        room.Name(),
+			Users:       room.Size(),
 			HasPassword: room.HasPassword(),
 		})
 	}
 
 	if err := client.Send(protocol.Message{
-	 	Type: "rooms",
-		Rooms: summaries, 
+		Type:  "rooms",
+		Rooms: summaries,
 	}); err != nil {
 		log.Println(err)
 	}
@@ -52,7 +52,7 @@ func (s *Server) commandJoinRoom(client *Client, roomName string, password strin
 	if err := s.JoinRoom(client, roomName, password); err != nil {
 		if errors.Is(err, ErrIncorrectPassword) {
 			if err := client.Send(protocol.Message{
-				Type: "join_password_required",
+				Type:    "join_password_required",
 				Message: roomName,
 			}); err != nil {
 				log.Println(err)
@@ -112,7 +112,6 @@ func (s *Server) commandDeleteRoom(client *Client) bool {
 		log.Println("Failed to save config: " + err.Error())
 	}
 
-	
 	return false
 }
 
@@ -120,8 +119,12 @@ func (s *Server) commandTopic(client *Client) bool {
 	room := client.Room()
 
 	if err := client.Send(protocol.Message{
-		Type:    "system",
-		Message: "Topic: " + room.Topic(),
+		Type:          "roominfo",
+		Message:       room.Name(),
+		RoomTopic:     room.Topic(),
+		RoomOwner:     room.Owner(),
+		RoomAdmins:    room.AdminsUsernames(),
+		RoomUserCount: room.Size(),
 	}); err != nil {
 		log.Println(err)
 	}
@@ -283,7 +286,6 @@ func (s *Server) commandKickUser(client *Client, targetNickname string) bool {
 
 	return false
 }
-
 
 func (r *Room) broadcastRoomInfo() {
 	r.Broadcast(protocol.Message{

@@ -32,11 +32,11 @@ type Model struct {
 	activeSidebar sidebarTab
 	users         []protocol.UserSummary
 	rooms         []protocol.RoomSummary
-	selfNickname string
+	selfNickname  string
 
-	roomName  string
+	roomName             string
 	awaitingRoomPassword string
-	roomTopic string
+	roomTopic            string
 
 	decoder *json.Decoder
 	encoder *json.Encoder

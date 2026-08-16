@@ -2,13 +2,14 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"fmt"
 	"log"
 	"os"
 	"strings"
-	"errors"
-	"golang.org/x/crypto/bcrypt"
 	"tuchat/protocol"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 func (s *Server) Name() string {
@@ -161,34 +162,14 @@ func (s *Server) sendWelcome(client *Client) {
 		template = defaultWelcomeMessage
 	}
 
-	replacer := strings.NewReplacer(
-		"{server}", s.Name(),
-		"{nickname}", client.User().Nickname(),
-	)
-
-	body := replacer.Replace(template)
-	border := strings.Repeat("=", borderWidth(body))
-
 	if err := client.Send(
 		protocol.Message{
-			Type:    "welcome",
-			Message: border + "\n" + body + "\n" + border,
+			Type:       "welcome",
+			Message:    template,
+			Nickname:   client.User().Nickname(),
+			ServerName: s.Name(),
 		},
 	); err != nil {
 		log.Println(err)
 	}
-}
-
-func borderWidth(body string) int {
-	const minWidth = 20
-
-	width := minWidth
-
-	for _, line := range strings.Split(body, "\n") {
-		if len(line) > width {
-			width = len(line)
-		}
-	}
-
-	return width
 }

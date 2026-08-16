@@ -1,11 +1,12 @@
 package tui
 
-import(
-	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/bubbles/textinput"
-	"tuchat/protocol"
+import (
 	"strings"
 	"time"
+	"tuchat/protocol"
+
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type screen int
@@ -19,20 +20,21 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case tea.WindowSizeMsg:
-
-		const (
-		sidebarWidth = 24
-		headerHeight = 1
-		inputHeight  = 3
-		)
-
 		m.width = msg.Width
 		m.height = msg.Height
 
+		const (
+			sidebarWidth = 24
+			gapWidth     = 2
+			verticalGap  = 4
+			headerHeight = 2
+			inputHeight  = 3
+		)
+
 		m.authMenu.SetSize(msg.Width-4, msg.Height-6)
 
-		m.viewport.Width = msg.Width - sidebarWidth - 6
-		m.viewport.Height = msg.Height - 7
+		m.viewport.Width = msg.Width - sidebarWidth - gapWidth - 6
+		m.viewport.Height = msg.Height - headerHeight - inputHeight - verticalGap
 
 		m.refreshViewport()
 
@@ -78,45 +80,53 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "chat":
 			m.chatLog = append(m.chatLog, chatEntry{
-				kind: "chat",
+				kind:      "chat",
 				timestamp: msg.Timestamp,
-				nickname: msg.Nickname, 
-				text: msg.Message,
-				self: msg.Nickname == m.selfNickname,
+				nickname:  msg.Nickname,
+				text:      msg.Message,
+				self:      msg.Nickname == m.selfNickname,
 			})
 			m.refreshViewport()
 
 		case "pm":
 			m.chatLog = append(m.chatLog, chatEntry{
-				kind: "pm",
+				kind:      "pm",
 				timestamp: msg.Timestamp,
-				nickname: msg.Nickname,
-				target: msg.Target,
-				text: msg.Message,
-				self: msg.Nickname == m.selfNickname,
+				nickname:  msg.Nickname,
+				target:    msg.Target,
+				text:      msg.Message,
+				self:      msg.Nickname == m.selfNickname,
 			})
 			m.refreshViewport()
 
-		case "system", "welcome", "announcement":
+		case "system", "announcement":
 			m.chatLog = append(m.chatLog, chatEntry{
-				kind: "system",
-				text: msg.Message,
+				kind:      "system",
+				text:      msg.Message,
 				timestamp: time.Now(),
+			})
+			m.refreshViewport()
+
+		case "welcome":
+			m.chatLog = append(m.chatLog, chatEntry{
+				kind:      "welcome",
+				text:      renderWelcomeMessage(msg),
+				timestamp: msg.Timestamp,
 			})
 			m.refreshViewport()
 
 		case "join":
 			m.chatLog = append(m.chatLog, chatEntry{
-				kind: "join",
-				nickname: msg.Nickname,
+				kind:      "join",
+				nickname:  msg.Nickname,
 				timestamp: time.Now(),
 			})
 			m.refreshViewport()
 
 		case "leave":
 			m.chatLog = append(m.chatLog, chatEntry{
-				kind: "leave",
-				nickname: msg.Nickname,
+				kind:      "leave",
+				nickname:  msg.Nickname,
 				timestamp: time.Now(),
 			})
 			m.refreshViewport()
@@ -244,9 +254,9 @@ func (m Model) handleChatKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			text: "Cancelled join.",
 		})
 		m.refreshViewport()
-		return m, nil	
+		return m, nil
 	}
-	
+
 	if msg.String() != "enter" {
 		var cmd tea.Cmd
 		m.chatInput, cmd = m.chatInput.Update(msg)
@@ -298,3 +308,9 @@ func (m *Model) refreshViewport() {
 	m.viewport.GotoBottom()
 }
 
+func renderWelcomeMessage(msg serverMsg) string {
+	return strings.NewReplacer(
+		"{server}", msg.ServerName,
+		"{nickname}", msg.Nickname,
+	).Replace(msg.Message)
+}
