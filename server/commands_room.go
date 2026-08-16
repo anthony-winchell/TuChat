@@ -251,7 +251,8 @@ func (s *Server) commandSetPassword(client *Client, password string) bool {
 
 func (s *Server) commandKickUser(client *Client, targetNickname string) bool {
 
-	target := s.findClientByNickname(targetNickname)
+	room := client.Room()
+	target := room.FindByNickname(targetNickname)
 
 	if target == nil {
 		sendError(client, "User not found: "+targetNickname)
@@ -263,7 +264,11 @@ func (s *Server) commandKickUser(client *Client, targetNickname string) bool {
 		return false
 	}
 
-	room := client.Room()
+
+	if room.Owner() == target.User().Username() {
+		sendError(client, "cannot kick room owner")
+		return false
+	}
 
 	if err := room.RequireAdmin(client); err != nil {
 		sendError(client, err.Error())

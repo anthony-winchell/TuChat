@@ -180,6 +180,20 @@ func (r *Room) Users() []*Client {
 	return clients
 }
 
+func (r *Room) FindByNickname(nickname string) *Client {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	for _, client := range r.clients {
+		if client.User().Nickname() == nickname {
+			return client
+		}
+	}
+
+	return nil
+
+}
+
 func (r *Room) Broadcast(msg protocol.Message, sender *Client) {
 	clients := r.Users()
 

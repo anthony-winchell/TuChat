@@ -48,11 +48,3 @@ func (s *Server) broadcastMessage(text string, sender *Client) {
 	}, nil)
 }
 
-func (s *Server) leaveAlert(leaver *Client) {
-	leaver.Room().Broadcast(protocol.Message{
-		Type:      "leave",
-		Username:  leaver.User().Username(),
-		Nickname:  leaver.User().Nickname(),
-		Timestamp: time.Now(),
-	}, leaver)
-}

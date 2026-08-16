@@ -158,13 +158,19 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	room := client.Room()
 
-	s.removeClient(client)
-
-	s.leaveAlert(client)
-
 	if room != nil {
 		room.Remove(client)
+		room.broadcastUserList()
+
+		room.Broadcast(protocol.Message{
+			Type: "leave",
+			Username: client.User().Username(),
+			Nickname: client.User().Nickname(),
+			Timestamp: time.Now(),
+		}, nil)
 	}
+
+	s.removeClient(client)
 }
 
 func (s *Server) removeConnection(conn net.Conn) {
