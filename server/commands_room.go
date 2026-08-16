@@ -93,6 +93,7 @@ func (s *Server) commandRenameRoom(name string, client *Client) bool {
 	}, nil)
 
 	room.broadcastRoomInfo()
+	s.broadcastRoomList()
 
 	return false
 }
@@ -273,6 +274,8 @@ func (s *Server) commandKickUser(client *Client, targetNickname string) bool {
 		sendError(client, err.Error())
 		return false
 	}
+
+	room.broadcastUserList()
 
 	if err := s.JoinRoom(target, "general", ""); err != nil {
 		log.Println(err)

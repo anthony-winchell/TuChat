@@ -19,6 +19,11 @@ const (
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
+	case tea.MouseMsg:
+		var cmd tea.Cmd
+		m.viewport, cmd = m.viewport.Update(msg)
+		return m, cmd
+
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		m.height = msg.Height
@@ -141,18 +146,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.roomName = msg.RoomName
 			m.roomTopic = msg.RoomTopic
 
-			return m, tea.Batch(
-				listenCmd(m.decoder),
-				sendCmd(m.encoder, protocol.Message{
-					Type:    "command",
-					Message: "/rooms",
-				}),
-				sendCmd(m.encoder, protocol.Message{
-					Type:    "command",
-					Message: "/users",
-				}),
-			)
-
 		case "error":
 			if m.screen == screenAuth {
 				m.authError = msg.Message
@@ -199,7 +192,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				}
 				return m, nil
 
-			case "enter":
+			case "ctrl+j":
 				if len(m.rooms) == 0 {
 					return m, nil
 				}
@@ -230,6 +223,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					Type:    "command",
 					Message: "/join " + room.Name,
 				})
+
+			default:
+				return m.handleChatKey(msg)
 			}
 		}
 
@@ -368,8 +364,13 @@ func formatTime(t time.Time) string {
 }
 
 func (m *Model) refreshViewport() {
+	wasAtBottom := m.viewport.AtBottom()
+
 	m.viewport.SetContent(renderEntries(m.chatLog))
-	m.viewport.GotoBottom()
+
+	if wasAtBottom {
+		m.viewport.GotoBottom()
+	}
 }
 
 func renderWelcomeMessage(msg serverMsg) string {

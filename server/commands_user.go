@@ -1,13 +1,13 @@
 package main
 
 import (
-	"tuchat/protocol"
-	"time"
-	"strings"
+	"fmt"
 	"log"
 	"sort"
-	"fmt"
 	"strconv"
+	"strings"
+	"time"
+	"tuchat/protocol"
 )
 
 func (s *Server) commandNick(client *Client, args []string) bool {
@@ -45,7 +45,7 @@ func (s *Server) commandNick(client *Client, args []string) bool {
 	}, nil)
 
 	if err := client.Send(protocol.Message{
-		Type: "nick_success",
+		Type:     "nick_success",
 		Nickname: nickname,
 	}); err != nil {
 		log.Println("Failed to send nick success:", err)
@@ -127,7 +127,7 @@ func (s *Server) commandUsers(client *Client) bool {
 
 func (s *Server) commandHelp(client *Client) bool {
 
-	message := "Commands:\n"
+	message := "Commands:\n\n"
 
 	names := make([]string, 0, len(s.commands))
 	for name := range s.commands {
@@ -140,7 +140,7 @@ func (s *Server) commandHelp(client *Client) bool {
 		command := s.commands[name]
 
 		message += fmt.Sprintf(
-			"%s - %s\n    Usage: %s\n",
+			"%s - %s\n  Usage: %s\n\n",
 			name,
 			command.Description,
 			command.Usage,

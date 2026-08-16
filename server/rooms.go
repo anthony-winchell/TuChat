@@ -4,6 +4,7 @@ import (
 	"errors"
 	"log"
 	"strings"
+	"time"
 	"tuchat/protocol"
 
 	"golang.org/x/crypto/bcrypt"
@@ -40,6 +41,7 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 		}, client)
 
 		oldRoom.broadcastUserList()
+		s.broadcastRoomList()
 	}
 
 	room.Add(client)
@@ -62,6 +64,7 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 	if err := client.Send(protocol.Message{
 		Type:    "system",
 		Message: "Joined room: " + roomName,
+		Timestamp: time.Now(),
 	}); err != nil {
 		log.Println(err)
 	}
@@ -73,6 +76,9 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 
 	room.broadcastUserList()
 	room.broadcastRoomInfo()
+
+	s.broadcastRoomList()
+
 
 	return nil
 }
@@ -538,7 +544,6 @@ func (s *Server) DeleteRoom(r *Room) error {
 	general.broadcastUserList()
 	s.broadcastRoomList()
 	general.broadcastRoomInfo()
-	general.broadcastUserList()
 
 	return nil
 }

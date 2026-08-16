@@ -80,7 +80,8 @@ func (m Model) renderSidebar() string {
 				line += " (admin)"
 			}
 			b.WriteString(sidebarItemStyle.Render(line))
-			b.WriteString("\n")
+			b.WriteString("\n\n")
+			b.WriteString("Tab to switch tabs")
 		}
 	case tabRooms:
 		for i, r := range m.rooms {
@@ -101,6 +102,12 @@ func (m Model) renderSidebar() string {
 
 			b.WriteString("\n")
 		}
+		b.WriteString("\n")
+		b.WriteString("Ctrl+J to join")
+		b.WriteString("\n")
+		b.WriteString("↑/↓ Select")
+		b.WriteString("\n")
+		b.WriteString("Tab to switch tabs")
 	}
 
 	return b.String()
