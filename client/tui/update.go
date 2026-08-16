@@ -141,6 +141,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.roomName = msg.RoomName
 			m.roomTopic = msg.RoomTopic
 
+			return m, tea.Batch(
+				listenCmd(m.decoder),
+				sendCmd(m.encoder, protocol.Message{
+					Type:    "command",
+					Message: "/rooms",
+				}),
+				sendCmd(m.encoder, protocol.Message{
+					Type:    "command",
+					Message: "/users",
+				}),
+			)
+
 		case "error":
 			if m.screen == screenAuth {
 				m.authError = msg.Message
@@ -170,6 +182,57 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
+		if m.screen == screenChat && m.activeSidebar == tabRooms {
+			if m.awaitingRoomPassword != "" {
+				return m.handleChatKey(msg)
+			}
+
+			switch msg.String() {
+			case "up":
+				if m.selectedRoom > 0 {
+					m.selectedRoom--
+				}
+				return m, nil
+			case "down":
+				if m.selectedRoom < len(m.rooms)-1 {
+					m.selectedRoom++
+				}
+				return m, nil
+
+			case "enter":
+				if len(m.rooms) == 0 {
+					return m, nil
+				}
+
+				room := m.rooms[m.selectedRoom]
+
+				if room.Name == m.roomName {
+					return m, nil
+				}
+
+				if room.HasPassword {
+					m.awaitingRoomPassword = room.Name
+
+					m.chatInput.EchoMode = textinput.EchoPassword
+					m.chatInput.Placeholder = "room password"
+					m.chatInput.Prompt = "🔒 "
+
+					m.chatLog = append(m.chatLog, chatEntry{
+						kind: "system",
+						text: "#" + room.Name + " requires a password. Enter it or press Esc to cancel.",
+					})
+					m.refreshViewport()
+
+					return m, nil
+				}
+
+				return m, sendCmd(m.encoder, protocol.Message{
+					Type:    "command",
+					Message: "/join " + room.Name,
+				})
+			}
+		}
+
 		if m.screen == screenAuth {
 			return m.handleAuthKey(msg)
 		}
@@ -183,6 +246,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.err = msg.err
 		return m, nil
 	}
+
 	return m, nil
 }
 

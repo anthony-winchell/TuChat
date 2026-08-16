@@ -83,12 +83,22 @@ func (m Model) renderSidebar() string {
 			b.WriteString("\n")
 		}
 	case tabRooms:
-		for _, r := range m.rooms {
+		for i, r := range m.rooms {
 			lock := ""
 			if r.HasPassword {
 				lock = "🔒"
 			}
-			b.WriteString(sidebarItemStyle.Render(fmt.Sprintf("• %s (%d)%s", r.Name, r.Users, lock)))
+
+			line := fmt.Sprintf("%s (%d)%s", r.Name, r.Users, lock)
+
+			if i == m.selectedRoom {
+				line = "> " + line
+				b.WriteString(sidebarTitleStyle.Render(line))
+			} else {
+				line = "  " + line
+				b.WriteString(sidebarItemStyle.Render(line))
+			}
+
 			b.WriteString("\n")
 		}
 	}

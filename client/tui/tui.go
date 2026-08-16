@@ -37,6 +37,7 @@ type Model struct {
 	roomName             string
 	awaitingRoomPassword string
 	roomTopic            string
+	selectedRoom         int
 
 	decoder *json.Decoder
 	encoder *json.Encoder
