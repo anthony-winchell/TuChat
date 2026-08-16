@@ -22,7 +22,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseMsg:
 		var cmd tea.Cmd
 		m.viewport, cmd = m.viewport.Update(msg)
-		if m.viewport.AtBottom(){
+		if m.viewport.AtBottom() {
 			m.newMessages = 0
 		}
 
@@ -89,7 +89,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "chat":
 			m.addChatEntry(chatEntry{
-				kind: "chat",
+				kind:      "chat",
 				timestamp: msg.Timestamp,
 				nickname:  msg.Nickname,
 				text:      msg.Message,
@@ -111,7 +111,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				kind:      "system",
 				text:      msg.Message,
 				timestamp: msg.Timestamp,
-		})
+			})
 
 		case "welcome":
 			m.addChatEntry(chatEntry{
@@ -147,13 +147,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "error":
 			if m.screen == screenAuth {
 				m.authError = msg.Message
-			} else {
-				m.chatLog = append(m.chatLog, chatEntry{
-					kind: "error",
-					text: msg.Message,
-				})
-				m.refreshViewport()
+				m.authStage = stagePassword
+				m.input.EchoMode = textinput.EchoPassword
+				m.input.Focus()
+				return m, listenCmd(m.decoder)
 			}
+			m.chatLog = append(m.chatLog, chatEntry{
+				kind: "error",
+				text: msg.Message,
+			})
+			m.refreshViewport()
 		}
 		return m, listenCmd(m.decoder)
 
@@ -277,17 +280,27 @@ func (m Model) handleAuthKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	switch m.authStage {
 	case stageUsername:
-		m.input.Placeholder = "password"
 		if value == "" {
 			return m, nil
 		}
+
 		m.pendingUser = value
 		m.authStage = stagePassword
+		m.input.EchoMode = textinput.EchoPassword
+		m.input.Placeholder = "password"
 		return m, nil
 
 	case stagePassword:
-		m.authStage = stageMenu
+		if value == "" {
+			return m, nil
+		}
+
 		m.authError = ""
+		m.authStage = stageAuthenticating
+
+		m.input.EchoMode = textinput.EchoNormal
+		m.input.Placeholder = "username"
+
 		return m, sendCmd(m.encoder, protocol.Message{
 			Type:     m.authChoice,
 			Username: m.pendingUser,
@@ -385,4 +398,3 @@ func renderWelcomeMessage(msg serverMsg) string {
 		"{nickname}", msg.Nickname,
 	).Replace(msg.Message)
 }
-

@@ -54,6 +54,10 @@ func (m Model) View() string {
 		return errorLine + m.authMenu.View()
 	}
 
+	if m.authStage == stageAuthenticating {
+		return "Authenticating...\n\n"
+	}
+
 	label := m.authChoice + " - username:"
 	if m.authStage == stagePassword {
 		label = m.authChoice + " - password:"

@@ -2,6 +2,7 @@ package tui
 
 import (
 	"encoding/json"
+	"net"
 	"time"
 	"tuchat/protocol"
 
@@ -14,18 +15,29 @@ import (
 const serverAddr = "localhost:8080"
 
 type Model struct {
+	//connection 
+	conn    net.Conn
+	decoder *json.Decoder
+	encoder *json.Encoder
+
+	//current screen
 	screen    screen
-	authStage authStage
 
-	authChoice  string
+	//auth
+	usernameInput textinput.Model
+	passwordInput textinput.Model
+	authFocus int
 	authError   string
+	authStage authStage
+	authChoice  string
 	pendingUser string
-
 	authMenu list.Model
-
+	
+	//chat
+	viewport    viewport.Model
 	chatLog     []chatEntry
 	newMessages int
-	viewport    viewport.Model
+
 	width       int
 	height      int
 	chatInput   textinput.Model
@@ -40,8 +52,7 @@ type Model struct {
 	roomTopic            string
 	selectedRoom         int
 
-	decoder *json.Decoder
-	encoder *json.Encoder
+	
 	input   textinput.Model
 	err     error
 }
@@ -61,6 +72,7 @@ const (
 	stageMenu authStage = iota
 	stageUsername
 	stagePassword
+	stageAuthenticating
 )
 
 type authOption string
