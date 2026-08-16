@@ -69,7 +69,10 @@ func (m Model) renderSidebar() string {
 		roomsTitle = sidebarTitleStyle.Render(roomsTitle)
 	}
 
-	b.WriteString(usersTitle + "  " + roomsTitle + "\n\n")
+	b.WriteString(usersTitle)
+	b.WriteString("  ")
+	b.WriteString(roomsTitle)
+	b.WriteString("\n\n")
 
 	switch m.activeSidebar {
 	case tabUsers:
@@ -80,7 +83,8 @@ func (m Model) renderSidebar() string {
 			} else if user.Admin {
 				line += " (admin)"
 			}
-			b.WriteString(sidebarItemStyle.Render(line) + "\n")
+			b.WriteString(sidebarItemStyle.Render(line))
+			b.WriteString("\n")
 		}
 	case tabRooms:
 		for _, r := range m.rooms {
@@ -88,7 +92,8 @@ func (m Model) renderSidebar() string {
 			if r.HasPassword {
 				lock = "🔒"
 			}
-			b.WriteString(sidebarItemStyle.Render(fmt.Sprintf("• %s (%d)%s", r.Name, r.Users, lock)) + "\n")
+			b.WriteString(sidebarItemStyle.Render(fmt.Sprintf("• %s (%d)%s", r.Name, r.Users, lock)))
+			b.WriteString("\n")
 		}
 	}
 
@@ -114,9 +119,10 @@ func renderEntries(entries []chatEntry) string {
 				name.Render(e.nickname),
 			)
 
-			b.WriteString(
-				ts + nickname + e.text + "\n",
-			)
+			b.WriteString(ts)
+			b.WriteString(nickname)
+			b.WriteString(e.text)
+			b.WriteString("\n")
 
 		case "pm":
 			label := fmt.Sprintf(
@@ -125,63 +131,49 @@ func renderEntries(entries []chatEntry) string {
 				e.target,
 			)
 
-			b.WriteString(
-				ts +
-					pmStyle.Render(label) +
-					": " +
-					e.text +
-					"\n",
-			)
+			b.WriteString(ts)
+			b.WriteString(pmStyle.Render(label))
+			b.WriteString(": ")
+			b.WriteString(e.text)
+			b.WriteString("\n")
 
 		case "welcome":
 			b.WriteString(renderWelcomeEntry(e))
 
 		case "system":
-			b.WriteString(
-				ts +
-					systemStyle.Render(e.text) +
-					"\n",
-			)
+			b.WriteString(ts)
+			b.WriteString(systemStyle.Render(e.text))
+			b.WriteString("\n")
 
 		case "room_joined":
-			b.WriteString(
-				ts +
-					systemStyle.Render("Joined #"+e.text) +
-					"\n",
-			)
+			b.WriteString(ts)
+			b.WriteString(systemStyle.Render("Joined #" + e.text))
+			b.WriteString("\n")
 
 		case "topic":
-			b.WriteString(
-				ts +
-					systemStyle.Render(
-						e.nickname+" changed the topic to: "+e.text,
-					) +
-					"\n",
-			)
+			b.WriteString(ts)
+			b.WriteString(systemStyle.Render(
+				e.nickname + " changed the topic to: " + e.text,
+			))
+			b.WriteString("\n")
 
 		case "error":
-			b.WriteString(
-				errorStyle.Render("Error: "+e.text) +
-					"\n",
-			)
+			b.WriteString(errorStyle.Render("Error: " + e.text))
+			b.WriteString("\n")
 
 		case "join":
-			b.WriteString(
-				ts +
-					joinLeaveStyle.Render(
-						e.nickname+" joined the chat",
-					) +
-					"\n",
-			)
+			b.WriteString(ts)
+			b.WriteString(joinLeaveStyle.Render(
+				e.nickname + " joined the chat",
+			))
+			b.WriteString("\n")
 
 		case "leave":
-			b.WriteString(
-				ts +
-					joinLeaveStyle.Render(
-						e.nickname+" left the chat",
-					) +
-					"\n",
-			)
+			b.WriteString(ts)
+			b.WriteString(joinLeaveStyle.Render(
+				e.nickname + " left the chat",
+			))
+			b.WriteString("\n")
 		}
 	}
 
@@ -217,15 +209,11 @@ func renderWelcomeEntry(e chatEntry) string {
 
 	for i, line := range lines {
 		if i == 0 {
-			b.WriteString(
-				timestampStyle.Render(formatTime(e.timestamp)) +
-					systemStyle.Render(line),
-			)
+			b.WriteString(timestampStyle.Render(formatTime(e.timestamp)))
+			b.WriteString(systemStyle.Render(line))
 		} else {
-			b.WriteString(
-				"\n" +
-					systemStyle.Render(line),
-			)
+			b.WriteString("\n")
+			b.WriteString(systemStyle.Render(line))
 		}
 	}
 
