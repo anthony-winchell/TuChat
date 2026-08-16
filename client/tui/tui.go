@@ -23,11 +23,12 @@ type Model struct {
 
 	authMenu list.Model
 
-	chatLog   []chatEntry
-	viewport  viewport.Model
-	width     int
-	height    int
-	chatInput textinput.Model
+	chatLog     []chatEntry
+	newMessages int
+	viewport    viewport.Model
+	width       int
+	height      int
+	chatInput   textinput.Model
 
 	activeSidebar sidebarTab
 	users         []protocol.UserSummary

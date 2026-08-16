@@ -22,12 +22,23 @@ func (m Model) View() string {
 	if m.screen == screenChat {
 		header := m.renderHeader()
 
+		chatPane := viewportStyle.Render(m.viewport.View())
+
+		if newMessages := m.renderNewMessages(); newMessages != "" {
+			chatPane = lipgloss.JoinVertical(
+				lipgloss.Left,
+				chatPane,
+				newMessages,
+			)
+		}
+
 		body := lipgloss.JoinHorizontal(
 			lipgloss.Top,
-			viewportStyle.Render(m.viewport.View()),
-			sidebarStyle.Render(m.renderSidebar()))
+			chatPane,
+			sidebarStyle.Render(m.renderSidebar()),
+		)
 
-		return header +
+		return headerStyle.Render(header) +
 			"\n\n" +
 			body +
 			"\n\n" +
@@ -233,4 +244,12 @@ func renderWelcomeEntry(e chatEntry) string {
 	b.WriteString("\n")
 
 	return b.String()
+}
+
+func (m Model) renderNewMessages() string {
+	if m.newMessages == 0 || m.viewport.AtBottom() {
+		return ""
+	}
+
+	return newMessagesStyle.Render(fmt.Sprintf("↓ %d new messages", m.newMessages))
 }

@@ -22,6 +22,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.MouseMsg:
 		var cmd tea.Cmd
 		m.viewport, cmd = m.viewport.Update(msg)
+		if m.viewport.AtBottom(){
+			m.newMessages = 0
+		}
+
 		return m, cmd
 
 	case tea.WindowSizeMsg:
@@ -84,17 +88,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.refreshViewport()
 
 		case "chat":
-			m.chatLog = append(m.chatLog, chatEntry{
-				kind:      "chat",
+			m.addChatEntry(chatEntry{
+				kind: "chat",
 				timestamp: msg.Timestamp,
 				nickname:  msg.Nickname,
 				text:      msg.Message,
 				self:      msg.Nickname == m.selfNickname,
 			})
-			m.refreshViewport()
 
 		case "pm":
-			m.chatLog = append(m.chatLog, chatEntry{
+			m.addChatEntry(chatEntry{
 				kind:      "pm",
 				timestamp: msg.Timestamp,
 				nickname:  msg.Nickname,
@@ -102,39 +105,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				text:      msg.Message,
 				self:      msg.Nickname == m.selfNickname,
 			})
-			m.refreshViewport()
 
 		case "system", "announcement":
-			m.chatLog = append(m.chatLog, chatEntry{
+			m.addChatEntry(chatEntry{
 				kind:      "system",
 				text:      msg.Message,
 				timestamp: msg.Timestamp,
-			})
-			m.refreshViewport()
+		})
 
 		case "welcome":
-			m.chatLog = append(m.chatLog, chatEntry{
+			m.addChatEntry(chatEntry{
 				kind:      "welcome",
 				text:      renderWelcomeMessage(msg),
 				timestamp: msg.Timestamp,
 			})
-			m.refreshViewport()
 
 		case "join":
-			m.chatLog = append(m.chatLog, chatEntry{
+			m.addChatEntry(chatEntry{
 				kind:      "join",
 				nickname:  msg.Nickname,
 				timestamp: msg.Timestamp,
 			})
-			m.refreshViewport()
 
 		case "leave":
-			m.chatLog = append(m.chatLog, chatEntry{
+			m.addChatEntry(chatEntry{
 				kind:      "leave",
 				nickname:  msg.Nickname,
 				timestamp: msg.Timestamp,
 			})
-			m.refreshViewport()
 
 		case "users":
 			m.users = msg.Users
@@ -364,12 +362,20 @@ func formatTime(t time.Time) string {
 }
 
 func (m *Model) refreshViewport() {
+	m.viewport.SetContent(renderEntries(m.chatLog))
+}
+
+func (m *Model) addChatEntry(entry chatEntry) {
 	wasAtBottom := m.viewport.AtBottom()
 
+	m.chatLog = append(m.chatLog, entry)
 	m.viewport.SetContent(renderEntries(m.chatLog))
 
 	if wasAtBottom {
 		m.viewport.GotoBottom()
+		m.newMessages = 0
+	} else {
+		m.newMessages++
 	}
 }
 
@@ -379,3 +385,4 @@ func renderWelcomeMessage(msg serverMsg) string {
 		"{nickname}", msg.Nickname,
 	).Replace(msg.Message)
 }
+

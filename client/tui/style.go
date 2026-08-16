@@ -53,4 +53,9 @@ var (
 	errorStyle = lipgloss.NewStyle().
 			Foreground(colorError).
 			Bold(true)
+
+	newMessagesStyle = lipgloss.NewStyle().
+	Align(lipgloss.Center).
+	Foreground(colorAccent).
+	Italic(true)
 )
