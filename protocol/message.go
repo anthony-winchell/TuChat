@@ -17,6 +17,7 @@ type Message struct {
 	Users []UserSummary `json:"users,omitempty"`
 
 	Rooms         []RoomSummary `json:"rooms,omitempty"`
+	RoomName      string        `json:"room_name,omitempty"`
 	RoomOwner     string        `json:"room_owner,omitempty"`
 	RoomAdmins    []string      `json:"room_admins,omitempty"`
 	RoomTopic     string        `json:"room_topic,omitempty"`

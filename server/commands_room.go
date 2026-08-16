@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"log"
+	"time"
 	"tuchat/protocol"
 )
 
@@ -14,7 +15,7 @@ func (s *Server) commandRoom(client *Client) bool {
 
 	if err := client.Send(protocol.Message{
 		Type:          "roominfo",
-		Message:       room.Name(),
+		RoomName:      room.Name(),
 		RoomOwner:     room.Owner(),
 		RoomAdmins:    room.AdminsUsernames(),
 		RoomTopic:     room.Topic(),
@@ -52,8 +53,9 @@ func (s *Server) commandJoinRoom(client *Client, roomName string, password strin
 	if err := s.JoinRoom(client, roomName, password); err != nil {
 		if errors.Is(err, ErrIncorrectPassword) {
 			if err := client.Send(protocol.Message{
-				Type:    "join_password_required",
-				Message: roomName,
+				Type:      "join_password_required",
+				Message:   roomName,
+				Timestamp: time.Now(),
 			}); err != nil {
 				log.Println(err)
 			}
@@ -85,8 +87,9 @@ func (s *Server) commandRenameRoom(name string, client *Client) bool {
 	}
 
 	room.Broadcast(protocol.Message{
-		Type:    "system",
-		Message: client.User().Nickname() + " renamed the room to " + name,
+		Type:      "system",
+		Message:   client.User().Nickname() + " renamed the room to " + name,
+		Timestamp: time.Now(),
 	}, nil)
 
 	room.broadcastRoomInfo()
@@ -120,11 +123,12 @@ func (s *Server) commandTopic(client *Client) bool {
 
 	if err := client.Send(protocol.Message{
 		Type:          "roominfo",
-		Message:       room.Name(),
+		RoomName:      room.Name(),
 		RoomTopic:     room.Topic(),
 		RoomOwner:     room.Owner(),
 		RoomAdmins:    room.AdminsUsernames(),
 		RoomUserCount: room.Size(),
+		Timestamp:     time.Now(),
 	}); err != nil {
 		log.Println(err)
 	}
@@ -146,8 +150,9 @@ func (s *Server) commandSetTopic(client *Client, topic string) bool {
 	}
 
 	room.Broadcast(protocol.Message{
-		Type:    "system",
-		Message: client.User().Nickname() + " changed the topic to: " + topic,
+		Type:      "system",
+		Message:   client.User().Nickname() + " changed the topic to: " + topic,
+		Timestamp: time.Now(),
 	}, nil)
 
 	room.broadcastRoomInfo()
@@ -177,8 +182,9 @@ func (s *Server) commandAddAdmin(client *Client, targetUsername string) bool {
 	}
 
 	room.Broadcast(protocol.Message{
-		Type:    "system",
-		Message: client.User().Nickname() + " made " + target.User().Nickname() + " admin",
+		Type:      "system",
+		Message:   client.User().Nickname() + " made " + target.User().Nickname() + " admin",
+		Timestamp: time.Now(),
 	}, nil)
 
 	room.broadcastUserList()
@@ -207,8 +213,9 @@ func (s *Server) commandRemoveAdmin(client *Client, targetUsername string) bool 
 	}
 
 	room.Broadcast(protocol.Message{
-		Type:    "system",
-		Message: target.User().Nickname() + "s admin status was revoked by " + client.User().Nickname(),
+		Type:      "system",
+		Message:   target.User().Nickname() + "s admin status was revoked by " + client.User().Nickname(),
+		Timestamp: time.Now(),
 	}, nil)
 
 	room.broadcastUserList()
@@ -232,8 +239,9 @@ func (s *Server) commandSetPassword(client *Client, password string) bool {
 			log.Println("Failed to save config: " + err.Error())
 		}
 		room.Broadcast(protocol.Message{
-			Type:    "system",
-			Message: client.User().Nickname() + " set a password",
+			Type:      "system",
+			Message:   client.User().Nickname() + " set a password",
+			Timestamp: time.Now(),
 		}, nil)
 	}
 
@@ -278,8 +286,9 @@ func (s *Server) commandKickUser(client *Client, targetNickname string) bool {
 		" by "+client.User().Nickname()+". You have been moved to #general")
 
 	room.Broadcast(protocol.Message{
-		Type:    "system",
-		Message: client.User().Nickname() + " kicked " + target.User().Nickname(),
+		Type:      "system",
+		Message:   client.User().Nickname() + " kicked " + target.User().Nickname(),
+		Timestamp: time.Now(),
 	}, nil)
 
 	room.broadcastUserList()
@@ -290,10 +299,11 @@ func (s *Server) commandKickUser(client *Client, targetNickname string) bool {
 func (r *Room) broadcastRoomInfo() {
 	r.Broadcast(protocol.Message{
 		Type:          "roominfo",
-		Message:       r.Name(),
+		RoomName:      r.Name(),
 		RoomOwner:     r.Owner(),
 		RoomAdmins:    r.AdminsUsernames(),
 		RoomTopic:     r.Topic(),
 		RoomUserCount: r.Size(),
+		Timestamp:     time.Now(),
 	}, nil)
 }

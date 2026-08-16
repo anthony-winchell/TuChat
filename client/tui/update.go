@@ -103,7 +103,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.chatLog = append(m.chatLog, chatEntry{
 				kind:      "system",
 				text:      msg.Message,
-				timestamp: time.Now(),
+				timestamp: msg.Timestamp,
 			})
 			m.refreshViewport()
 
@@ -119,7 +119,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.chatLog = append(m.chatLog, chatEntry{
 				kind:      "join",
 				nickname:  msg.Nickname,
-				timestamp: time.Now(),
+				timestamp: msg.Timestamp,
 			})
 			m.refreshViewport()
 
@@ -127,7 +127,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.chatLog = append(m.chatLog, chatEntry{
 				kind:      "leave",
 				nickname:  msg.Nickname,
-				timestamp: time.Now(),
+				timestamp: msg.Timestamp,
 			})
 			m.refreshViewport()
 
@@ -138,7 +138,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.rooms = msg.Rooms
 
 		case "roominfo":
-			m.roomName = msg.Message
+			m.roomName = msg.RoomName
 			m.roomTopic = msg.RoomTopic
 
 		case "error":

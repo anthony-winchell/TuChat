@@ -22,16 +22,12 @@ func (m Model) View() string {
 	if m.screen == screenChat {
 		header := m.renderHeader()
 
-		if m.roomTopic == "" {
-			header = "#" + m.roomName
-		}
-
 		body := lipgloss.JoinHorizontal(
 			lipgloss.Top,
 			viewportStyle.Render(m.viewport.View()),
 			sidebarStyle.Render(m.renderSidebar()))
 
-		return headerStyle.Render(header) +
+		return header +
 			"\n\n" +
 			body +
 			"\n\n" +

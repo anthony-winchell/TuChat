@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"strings"
+	"time"
 	"tuchat/protocol"
 )
 
@@ -269,11 +270,11 @@ func (s *Server) InitializeCommands() {
 	}
 }
 
-
 func sendError(client *Client, msg string) {
 	if err := client.Send(protocol.Message{
-		Type:    "error",
-		Message: msg,
+		Type:      "error",
+		Message:   msg,
+		Timestamp: time.Now(),
 	}); err != nil {
 		log.Println(err)
 	}
