@@ -1,13 +1,15 @@
 package tui
 
 import (
-	"tuchat/protocol"
 	"encoding/json"
-	tea "github.com/charmbracelet/bubbletea"
 	"net"
+	"tuchat/protocol"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 type connectedMsg struct {
+	conn    net.Conn
 	decoder *json.Decoder
 	encoder *json.Encoder
 }
@@ -31,6 +33,7 @@ func connectCmd() tea.Cmd {
 			return connErrMsg{err: err}
 		}
 		return connectedMsg{
+			conn:    conn,
 			decoder: json.NewDecoder(conn),
 			encoder: json.NewEncoder(conn),
 		}

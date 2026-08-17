@@ -15,32 +15,30 @@ import (
 const serverAddr = "localhost:8080"
 
 type Model struct {
-	//connection 
+	//connection
 	conn    net.Conn
 	decoder *json.Decoder
 	encoder *json.Encoder
 
 	//current screen
-	screen    screen
+	screen screen
 
 	//auth
-	usernameInput textinput.Model
-	passwordInput textinput.Model
-	authFocus int
+	authFocus   int
 	authError   string
-	authStage authStage
+	authStage   authStage
 	authChoice  string
 	pendingUser string
-	authMenu list.Model
-	
+	authMenu    list.Model
+
 	//chat
 	viewport    viewport.Model
 	chatLog     []chatEntry
 	newMessages int
 
-	width       int
-	height      int
-	chatInput   textinput.Model
+	width     int
+	height    int
+	chatInput textinput.Model
 
 	activeSidebar sidebarTab
 	users         []protocol.UserSummary
@@ -52,10 +50,10 @@ type Model struct {
 	roomTopic            string
 	selectedRoom         int
 
-	
-	input   textinput.Model
-	err     error
+	authInput textinput.Model
+	err       error
 }
+
 
 type chatEntry struct {
 	kind      string
@@ -97,7 +95,6 @@ func New() Model {
 
 	ti := textinput.New()
 	ti.Placeholder = "username"
-	ti.Focus()
 
 	items := []list.Item{
 		authOption("Login"),
@@ -121,7 +118,7 @@ func New() Model {
 	ci.Focus()
 
 	return Model{
-		input:     ti,
+		authInput: ti,
 		authMenu:  authMenu,
 		viewport:  vp,
 		chatInput: ci,

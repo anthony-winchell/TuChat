@@ -50,6 +50,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case connectedMsg:
+		m.conn = msg.conn
 		m.decoder = msg.decoder
 		m.encoder = msg.encoder
 		return m, listenCmd(m.decoder)
@@ -60,9 +61,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case serverMsg:
 		switch msg.Type {
+
 		case "auth_success":
 			m.screen = screenChat
 			m.selfNickname = msg.Nickname
+
+			m.authError = ""
+			m.authStage = stageMenu
+			m.pendingUser = ""
+			m.authInput.Reset()
+			m.authInput.Blur()
+			m.chatInput.Focus()
+
 			return m, tea.Batch(listenCmd(m.decoder), sendCmd(m.encoder, protocol.Message{
 				Type:    "command",
 				Message: "/users",
@@ -147,9 +157,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "error":
 			if m.screen == screenAuth {
 				m.authError = msg.Message
-				m.authStage = stagePassword
-				m.input.EchoMode = textinput.EchoPassword
-				m.input.Focus()
+
+				if m.authStage == stageAuthenticating && msg.Message == "invalid password" {
+					m.authStage = stagePassword
+					m.authInput.EchoMode = textinput.EchoPassword
+					m.authInput.Placeholder = "password"
+				} else {
+					m.authStage = stageMenu
+					m.authInput.EchoMode = textinput.EchoNormal
+					m.authInput.Placeholder = "username"
+					m.authInput.Reset()
+					m.authInput.Blur()
+				}
 				return m, listenCmd(m.decoder)
 			}
 			m.chatLog = append(m.chatLog, chatEntry{
@@ -260,7 +279,11 @@ func (m Model) handleAuthKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 				m.authChoice = "register"
 			}
 			m.authStage = stageUsername
-			m.input.Placeholder = "username"
+			m.authInput.Reset()
+			m.authInput.EchoMode = textinput.EchoNormal
+			m.authInput.Placeholder = "username"
+			m.authInput.Focus()
+
 			return m, nil
 		}
 
@@ -269,16 +292,35 @@ func (m Model) handleAuthKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, cmd
 	}
 
+	if msg.String() == "esc" {
+		switch m.authStage {
+		case stageUsername:
+			m.authStage = stageMenu
+			m.authInput.Blur()
+			m.authInput.Reset()
+			m.authError = ""
+
+		case stagePassword:
+			m.authStage = stageUsername
+			m.authInput.Reset()
+			m.authInput.EchoMode = textinput.EchoNormal
+			m.authInput.Placeholder = "username"
+			m.authError = ""
+		}
+		return m, nil
+	}
+
 	if msg.String() != "enter" {
 		var cmd tea.Cmd
-		m.input, cmd = m.input.Update(msg)
+		m.authInput, cmd = m.authInput.Update(msg)
 		return m, cmd
 	}
 
-	value := strings.TrimSpace(m.input.Value())
-	m.input.Reset()
+	value := strings.TrimSpace(m.authInput.Value())
+	m.authInput.Reset()
 
 	switch m.authStage {
+
 	case stageUsername:
 		if value == "" {
 			return m, nil
@@ -286,8 +328,10 @@ func (m Model) handleAuthKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 		m.pendingUser = value
 		m.authStage = stagePassword
-		m.input.EchoMode = textinput.EchoPassword
-		m.input.Placeholder = "password"
+		m.authInput.EchoMode = textinput.EchoPassword
+		m.authInput.Placeholder = "password"
+		m.authInput.Focus()
+
 		return m, nil
 
 	case stagePassword:
@@ -298,8 +342,8 @@ func (m Model) handleAuthKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.authError = ""
 		m.authStage = stageAuthenticating
 
-		m.input.EchoMode = textinput.EchoNormal
-		m.input.Placeholder = "username"
+		m.authInput.EchoMode = textinput.EchoNormal
+		m.authInput.Placeholder = "username"
 
 		return m, sendCmd(m.encoder, protocol.Message{
 			Type:     m.authChoice,

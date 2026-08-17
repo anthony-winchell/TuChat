@@ -46,6 +46,7 @@ func (m Model) View() string {
 	}
 
 	var errorLine string
+
 	if m.authError != "" {
 		errorLine = errorStyle.Render("Error: " + m.authError + "\n\n")
 	}
@@ -55,15 +56,16 @@ func (m Model) View() string {
 	}
 
 	if m.authStage == stageAuthenticating {
-		return "Authenticating...\n\n"
+		return errorLine + "Authenticating...\n\n"
 	}
 
 	label := m.authChoice + " - username:"
+
 	if m.authStage == stagePassword {
 		label = m.authChoice + " - password:"
 	}
 
-	return errorLine + label + "\n\n" + m.input.View()
+	return errorLine + label + "\n\n" + m.authInput.View()
 }
 
 func (m Model) renderSidebar() string {
