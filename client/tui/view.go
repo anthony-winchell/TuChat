@@ -14,6 +14,7 @@ const (
 	tabRooms
 )
 
+
 func (m Model) View() string {
 	if m.connection.state == connectionDisconnected {
 		return m.renderDisconnected()
