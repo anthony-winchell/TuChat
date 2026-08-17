@@ -1,8 +1,8 @@
 package tui
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func (m Model) handleServerMessage(msg serverMsg) (tea.Model, tea.Cmd) {
@@ -66,4 +66,3 @@ func (m Model) handleServerError(msg serverMsg) (tea.Model, tea.Cmd) {
 	return m, listenCmd(m.connection.dec)
 
 }
-

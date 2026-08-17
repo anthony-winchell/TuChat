@@ -119,7 +119,6 @@ func (m Model) handleAuthSuccess(msg serverMsg) (tea.Model, tea.Cmd) {
 	m.auth.pendingUser = ""
 	m.auth.input.Reset()
 	m.auth.input.Blur()
-	m.auth.input.Focus()
 
 	return m, tea.Batch(listenCmd(m.connection.dec), sendCmd(m.connection.enc, protocol.Message{
 		Type:    "command",
