@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"os"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -10,9 +9,15 @@ import (
 )
 
 func main() {
-	p := tea.NewProgram(tui.New(), tea.WithAltScreen(), tea.WithMouseCellMotion())
-	if _, err := p.Run(); err != nil {
-		fmt.Println("Error running program:", err)
+	p := tea.NewProgram(
+		tui.New(),
+		tea.WithAltScreen(),
+		tea.WithMouseCellMotion(),
+	)
+
+	_, err := p.Run()
+
+	if err != nil {
 		os.Exit(1)
 	}
 }

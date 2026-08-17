@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 	"time"
 	"tuchat/protocol"
@@ -53,10 +54,14 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.conn = msg.conn
 		m.decoder = msg.decoder
 		m.encoder = msg.encoder
+		m.connectionState = connectionConnected
+
 		return m, listenCmd(m.decoder)
 
 	case connErrMsg:
+		m.connectionState = connectionDisconnected
 		m.err = msg.err
+		fmt.Println("DEBUG: connection disconnected")
 		return m, nil
 
 	case serverMsg:
@@ -184,6 +189,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		}
 
+		if m.connectionState == connectionDisconnected {
+			if msg.String() == "q" {
+				return m, tea.Quit
+			}
+			return m, nil
+		}
+
 		if msg.String() == "tab" {
 			m.activeSidebar = (m.activeSidebar + 1) % 2
 			if m.activeSidebar == tabRooms {
@@ -259,6 +271,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case sendErrMsg:
+		m.connectionState = connectionDisconnected
 		m.err = msg.err
 		return m, nil
 	}

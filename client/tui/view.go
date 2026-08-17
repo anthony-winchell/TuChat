@@ -15,8 +15,8 @@ const (
 )
 
 func (m Model) View() string {
-	if m.err != nil {
-		return "connection error: " + m.err.Error()
+	if m.connectionState == connectionDisconnected {
+		return m.renderDisconnected()
 	}
 
 	if m.screen == screenChat {
@@ -258,4 +258,21 @@ func (m Model) renderNewMessages() string {
 	}
 
 	return newMessagesStyle.Render(fmt.Sprintf("↓ %d new messages", m.newMessages))
+}
+
+func (m Model) renderDisconnected() string {
+	var message string
+
+	if m.err != nil {
+		message = m.err.Error()
+	}
+
+	return lipgloss.NewStyle().
+		Padding(2, 4).
+		Render(
+			"Disconnected from server\n\n" +
+				message +
+				"\n\n" +
+				"Press q to quit",
+		)
 }

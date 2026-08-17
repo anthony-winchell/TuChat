@@ -16,9 +16,10 @@ const serverAddr = "localhost:8080"
 
 type Model struct {
 	//connection
-	conn    net.Conn
-	decoder *json.Decoder
-	encoder *json.Encoder
+	conn            net.Conn
+	decoder         *json.Decoder
+	encoder         *json.Encoder
+	connectionState connectionState
 
 	//current screen
 	screen screen
@@ -54,7 +55,6 @@ type Model struct {
 	err       error
 }
 
-
 type chatEntry struct {
 	kind      string
 	timestamp time.Time
@@ -87,6 +87,14 @@ func (a authOption) FilterValue() string {
 	return string(a)
 }
 
+type connectionState int
+
+const (
+	connectionConnecting connectionState = iota
+	connectionConnected
+	connectionDisconnected
+)
+
 func (m Model) Init() tea.Cmd {
 	return connectCmd()
 }
@@ -118,9 +126,10 @@ func New() Model {
 	ci.Focus()
 
 	return Model{
-		authInput: ti,
-		authMenu:  authMenu,
-		viewport:  vp,
-		chatInput: ci,
+		authInput:       ti,
+		authMenu:        authMenu,
+		viewport:        vp,
+		chatInput:       ci,
+		connectionState: connectionConnecting,
 	}
 }
