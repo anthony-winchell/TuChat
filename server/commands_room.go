@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"log"
+	"sort"
 	"time"
 	"tuchat/protocol"
 )
@@ -38,6 +39,10 @@ func (s *Server) commandRooms(client *Client) bool {
 			HasPassword: room.HasPassword(),
 		})
 	}
+
+	sort.Slice(summaries, func(i, j int) bool {
+		return summaries[i].Name < summaries[j].Name
+	})
 
 	if err := client.Send(protocol.Message{
 		Type:  "rooms",
@@ -263,7 +268,6 @@ func (s *Server) commandKickUser(client *Client, targetNickname string) bool {
 		sendError(client, "You cannot kick yourself")
 		return false
 	}
-
 
 	if room.Owner() == target.User().Username() {
 		sendError(client, "cannot kick room owner")

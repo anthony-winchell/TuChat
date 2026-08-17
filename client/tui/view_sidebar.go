@@ -54,25 +54,36 @@ func (m Model) renderSidebar() string {
 	case tabRooms:
 		for i, r := range m.chat.rooms {
 			lock := ""
+			selected := i == m.chat.selectedRoom
+			current := r.Name == m.chat.roomName
+
+			marker := " "
+
+			if selected {
+				marker = ">"
+			}
+
+			if current {
+				marker = "✓"
+			}
 
 			if r.HasPassword {
 				lock = "🔒"
 			}
 
 			line := fmt.Sprintf(
-				"%s (%d)%s",
+				"%s %s (%d)%s",
+				marker,
 				r.Name,
 				r.Users,
 				lock,
 			)
 
 			if i == m.chat.selectedRoom {
-				line = "> " + line
 				b.WriteString(
 					sidebarTitleStyle.Render(line),
 				)
 			} else {
-				line = "  " + line
 				b.WriteString(
 					sidebarItemStyle.Render(line),
 				)

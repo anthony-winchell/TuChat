@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"log"
+	"sort"
 	"strings"
 	"time"
 	"tuchat/protocol"
@@ -62,8 +63,8 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 	}
 
 	if err := client.Send(protocol.Message{
-		Type:    "system",
-		Message: "Joined room: " + roomName,
+		Type:      "system",
+		Message:   "Joined room: " + roomName,
 		Timestamp: time.Now(),
 	}); err != nil {
 		log.Println(err)
@@ -79,10 +80,8 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 
 	s.broadcastRoomList()
 
-
 	return nil
 }
-
 
 func (r *Room) broadcastUserList() {
 	clients := r.Users()
@@ -93,13 +92,12 @@ func (r *Room) broadcastUserList() {
 		username := client.User().Username()
 		summaries = append(summaries, protocol.UserSummary{
 			Nickname: client.User().Nickname(),
-			Admin: r.IsAdmin(username),
-			Owner: r.IsOwner(username),
-
+			Admin:    r.IsAdmin(username),
+			Owner:    r.IsOwner(username),
 		})
 	}
 	r.Broadcast(protocol.Message{
-		Type: "users",
+		Type:  "users",
 		Users: summaries,
 	}, nil)
 }
@@ -131,14 +129,18 @@ func (s *Server) broadcastRoomList() {
 
 	for _, room := range rooms {
 		summaries = append(summaries, protocol.RoomSummary{
-			Name: room.Name(),
-			Users: room.Size(),
+			Name:        room.Name(),
+			Users:       room.Size(),
 			HasPassword: room.HasPassword(),
 		})
 	}
 
+	sort.Slice(summaries, func(i, j int) bool {
+		return summaries[i].Name < summaries[j].Name
+	})
+
 	s.sendToAll(protocol.Message{
-		Type: "rooms",
+		Type:  "rooms",
 		Rooms: summaries,
 	}, nil)
 }
@@ -149,7 +151,6 @@ func (r *Room) Remove(client *Client) {
 	defer r.mu.Unlock()
 
 	delete(r.clients, client.User().Username())
-
 
 	client.mu.Lock()
 	client.room = nil
@@ -313,7 +314,6 @@ func (r *Room) RequireAdmin(client *Client) error {
 	if !r.IsAdmin(client.User().Username()) {
 		return errors.New("admin permissions required")
 	}
-
 
 	return nil
 }
@@ -574,7 +574,6 @@ func (s *Server) AddRoom(room *Room) error {
 
 	return nil
 }
-
 
 func ValidateRoomName(name string) error {
 	if name == "" {

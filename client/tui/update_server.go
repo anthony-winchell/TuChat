@@ -25,8 +25,7 @@ func (m Model) handleServerMessage(msg serverMsg) (tea.Model, tea.Cmd) {
 		m.chat.users = msg.Users
 
 	case "rooms":
-		m.chat.rooms = msg.Rooms
-
+		m.handleRoomSelection(msg)
 	case "roominfo":
 		m.chat.roomName = msg.RoomName
 		m.chat.roomTopic = msg.RoomTopic
@@ -64,5 +63,26 @@ func (m Model) handleServerError(msg serverMsg) (tea.Model, tea.Cmd) {
 	})
 
 	return m, listenCmd(m.connection.dec)
+
+}
+
+func (m *Model) handleRoomSelection(msg serverMsg) {
+	selectedRoom := ""
+
+	if m.chat.selectedRoom >= 0 &&
+		m.chat.selectedRoom < len(m.chat.rooms) {
+		selectedRoom = m.chat.rooms[m.chat.selectedRoom].Name
+	}
+
+	m.chat.rooms = msg.Rooms
+
+	m.chat.selectedRoom = 0
+
+	for i, room := range m.chat.rooms {
+		if room.Name == selectedRoom {
+			m.chat.selectedRoom = i
+			break
+		}
+	}
 
 }
