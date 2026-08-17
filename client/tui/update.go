@@ -10,28 +10,21 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-type screen int
-
-const (
-	screenAuth screen = iota
-	screenChat
-)
-
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case tea.MouseMsg:
 		var cmd tea.Cmd
-		m.viewport, cmd = m.viewport.Update(msg)
-		if m.viewport.AtBottom() {
-			m.newMessages = 0
+		m.chat.viewport, cmd = m.chat.viewport.Update(msg)
+		if m.chat.viewport.AtBottom() {
+			m.chat.newMessages = 0
 		}
 
 		return m, cmd
 
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		m.height = msg.Height
+		m.ui.width = msg.Width
+		m.ui.height = msg.Height
 
 		const (
 			sidebarWidth = 24
@@ -41,25 +34,25 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			inputHeight  = 3
 		)
 
-		m.authMenu.SetSize(msg.Width-4, msg.Height-6)
+		m.auth.menu.SetSize(msg.Width-4, msg.Height-6)
 
-		m.viewport.Width = msg.Width - sidebarWidth - gapWidth - 6
-		m.viewport.Height = msg.Height - headerHeight - inputHeight - verticalGap
+		m.chat.viewport.Width = msg.Width - sidebarWidth - gapWidth - 6
+		m.chat.viewport.Height = msg.Height - headerHeight - inputHeight - verticalGap
 
 		m.refreshViewport()
 
 		return m, nil
 
 	case connectedMsg:
-		m.conn = msg.conn
-		m.decoder = msg.decoder
-		m.encoder = msg.encoder
-		m.connectionState = connectionConnected
+		m.connection.conn = msg.conn
+		m.connection.dec = msg.decoder
+		m.connection.enc = msg.encoder
+		m.connection.state = connectionConnected
 
-		return m, listenCmd(m.decoder)
+		return m, listenCmd(m.connection.dec)
 
 	case connErrMsg:
-		m.connectionState = connectionDisconnected
+		m.connection.state = connectionDisconnected
 		m.err = msg.err
 		fmt.Println("DEBUG: connection disconnected")
 		return m, nil
@@ -69,34 +62,34 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "auth_success":
 			m.screen = screenChat
-			m.selfNickname = msg.Nickname
+			m.chat.selfNickname = msg.Nickname
 
-			m.authError = ""
-			m.authStage = stageMenu
-			m.pendingUser = ""
-			m.authInput.Reset()
-			m.authInput.Blur()
-			m.chatInput.Focus()
+			m.auth.error = ""
+			m.auth.stage = stageMenu
+			m.auth.pendingUser = ""
+			m.auth.input.Reset()
+			m.auth.input.Blur()
+			m.auth.input.Focus()
 
-			return m, tea.Batch(listenCmd(m.decoder), sendCmd(m.encoder, protocol.Message{
+			return m, tea.Batch(listenCmd(m.connection.dec), sendCmd(m.connection.enc, protocol.Message{
 				Type:    "command",
 				Message: "/users",
-			}), sendCmd(m.encoder, protocol.Message{
+			}), sendCmd(m.connection.enc, protocol.Message{
 				Type:    "command",
 				Message: "/room",
 			}))
 
 		case "nick_success":
-			m.selfNickname = msg.Nickname
+			m.chat.selfNickname = msg.Nickname
 
 		case "join_password_required":
-			m.awaitingRoomPassword = msg.Message
+			m.chat.awaitingRoomPassword = msg.Message
 
-			m.chatInput.EchoMode = textinput.EchoPassword
-			m.chatInput.Placeholder = "room password"
-			m.chatInput.Prompt = "🔒 "
+			m.chat.input.EchoMode = textinput.EchoPassword
+			m.chat.input.Placeholder = "room password"
+			m.chat.input.Prompt = "🔒 "
 
-			m.chatLog = append(m.chatLog, chatEntry{
+			m.chat.entries = append(m.chat.entries, chatEntry{
 				kind: "system",
 				text: "#" + msg.Message + " requires a password. Enter it or press Esc to cancel.",
 			})
@@ -108,7 +101,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				timestamp: msg.Timestamp,
 				nickname:  msg.Nickname,
 				text:      msg.Message,
-				self:      msg.Nickname == m.selfNickname,
+				self:      msg.Nickname == m.chat.selfNickname,
 			})
 
 		case "pm":
@@ -118,7 +111,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 				nickname:  msg.Nickname,
 				target:    msg.Target,
 				text:      msg.Message,
-				self:      msg.Nickname == m.selfNickname,
+				self:      msg.Nickname == m.chat.selfNickname,
 			})
 
 		case "system", "announcement":
@@ -150,46 +143,46 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			})
 
 		case "users":
-			m.users = msg.Users
+			m.chat.users = msg.Users
 
 		case "rooms":
-			m.rooms = msg.Rooms
+			m.chat.rooms = msg.Rooms
 
 		case "roominfo":
-			m.roomName = msg.RoomName
-			m.roomTopic = msg.RoomTopic
+			m.chat.roomName = msg.RoomName
+			m.chat.roomTopic = msg.RoomTopic
 
 		case "error":
 			if m.screen == screenAuth {
-				m.authError = msg.Message
+				m.auth.error = msg.Message
 
-				if m.authStage == stageAuthenticating && msg.Message == "invalid password" {
-					m.authStage = stagePassword
-					m.authInput.EchoMode = textinput.EchoPassword
-					m.authInput.Placeholder = "password"
+				if m.auth.stage == stageAuthenticating && msg.Message == "invalid password" {
+					m.auth.stage = stagePassword
+					m.auth.input.EchoMode = textinput.EchoPassword
+					m.auth.input.Placeholder = "password"
 				} else {
-					m.authStage = stageMenu
-					m.authInput.EchoMode = textinput.EchoNormal
-					m.authInput.Placeholder = "username"
-					m.authInput.Reset()
-					m.authInput.Blur()
+					m.auth.stage = stageMenu
+					m.auth.input.EchoMode = textinput.EchoNormal
+					m.auth.input.Placeholder = "username"
+					m.auth.input.Reset()
+					m.auth.input.Blur()
 				}
-				return m, listenCmd(m.decoder)
+				return m, listenCmd(m.connection.dec)
 			}
-			m.chatLog = append(m.chatLog, chatEntry{
+			m.chat.entries = append(m.chat.entries, chatEntry{
 				kind: "error",
 				text: msg.Message,
 			})
 			m.refreshViewport()
 		}
-		return m, listenCmd(m.decoder)
+		return m, listenCmd(m.connection.dec)
 
 	case tea.KeyMsg:
 		if msg.String() == "ctrl+c" {
 			return m, tea.Quit
 		}
 
-		if m.connectionState == connectionDisconnected {
+		if m.connection.state == connectionDisconnected {
 			if msg.String() == "q" {
 				return m, tea.Quit
 			}
@@ -197,9 +190,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 		if msg.String() == "tab" {
-			m.activeSidebar = (m.activeSidebar + 1) % 2
-			if m.activeSidebar == tabRooms {
-				return m, sendCmd(m.encoder, protocol.Message{
+			m.chat.activeSidebar = (m.chat.activeSidebar + 1) % 2
+			if m.chat.activeSidebar == tabRooms {
+				return m, sendCmd(m.connection.enc, protocol.Message{
 					Type:    "command",
 					Message: "/rooms",
 				})
@@ -207,42 +200,42 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		if m.screen == screenChat && m.activeSidebar == tabRooms {
-			if m.awaitingRoomPassword != "" {
+		if m.screen == screenChat && m.chat.activeSidebar == tabRooms {
+			if m.chat.awaitingRoomPassword != "" {
 				return m.handleChatKey(msg)
 			}
 
 			switch msg.String() {
 			case "up":
-				if m.selectedRoom > 0 {
-					m.selectedRoom--
+				if m.chat.selectedRoom > 0 {
+					m.chat.selectedRoom--
 				}
 				return m, nil
 			case "down":
-				if m.selectedRoom < len(m.rooms)-1 {
-					m.selectedRoom++
+				if m.chat.selectedRoom < len(m.chat.rooms)-1 {
+					m.chat.selectedRoom++
 				}
 				return m, nil
 
 			case "ctrl+j":
-				if len(m.rooms) == 0 {
+				if len(m.chat.rooms) == 0 {
 					return m, nil
 				}
 
-				room := m.rooms[m.selectedRoom]
+				room := m.chat.rooms[m.chat.selectedRoom]
 
-				if room.Name == m.roomName {
+				if room.Name == m.chat.roomName {
 					return m, nil
 				}
 
 				if room.HasPassword {
-					m.awaitingRoomPassword = room.Name
+					m.chat.awaitingRoomPassword = room.Name
 
-					m.chatInput.EchoMode = textinput.EchoPassword
-					m.chatInput.Placeholder = "room password"
-					m.chatInput.Prompt = "🔒 "
+					m.chat.input.EchoMode = textinput.EchoPassword
+					m.chat.input.Placeholder = "room password"
+					m.chat.input.Prompt = "🔒 "
 
-					m.chatLog = append(m.chatLog, chatEntry{
+					m.chat.entries = append(m.chat.entries, chatEntry{
 						kind: "system",
 						text: "#" + room.Name + " requires a password. Enter it or press Esc to cancel.",
 					})
@@ -251,7 +244,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 					return m, nil
 				}
 
-				return m, sendCmd(m.encoder, protocol.Message{
+				return m, sendCmd(m.connection.enc, protocol.Message{
 					Type:    "command",
 					Message: "/join " + room.Name,
 				})
@@ -267,11 +260,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		return m.handleChatKey(msg)
 
-	case sentMsg:
-		return m, nil
-
 	case sendErrMsg:
-		m.connectionState = connectionDisconnected
+		m.connection.state = connectionDisconnected
 		m.err = msg.err
 		return m, nil
 	}
@@ -280,70 +270,70 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleAuthKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if m.authStage == stageMenu {
+	if m.auth.stage == stageMenu {
 		if msg.String() == "enter" {
-			selected, ok := m.authMenu.SelectedItem().(authOption)
+			selected, ok := m.auth.menu.SelectedItem().(authOption)
 			if !ok {
 				return m, nil
 			}
 			if selected == "Login" {
-				m.authChoice = "login"
+				m.auth.choice = "login"
 			} else {
-				m.authChoice = "register"
+				m.auth.choice = "register"
 			}
-			m.authStage = stageUsername
-			m.authInput.Reset()
-			m.authInput.EchoMode = textinput.EchoNormal
-			m.authInput.Placeholder = "username"
-			m.authInput.Focus()
+			m.auth.stage = stageUsername
+			m.auth.input.Reset()
+			m.auth.input.EchoMode = textinput.EchoNormal
+			m.auth.input.Placeholder = "username"
+			m.auth.input.Focus()
 
 			return m, nil
 		}
 
 		var cmd tea.Cmd
-		m.authMenu, cmd = m.authMenu.Update(msg)
+		m.auth.menu, cmd = m.auth.menu.Update(msg)
 		return m, cmd
 	}
 
 	if msg.String() == "esc" {
-		switch m.authStage {
+		switch m.auth.stage {
 		case stageUsername:
-			m.authStage = stageMenu
-			m.authInput.Blur()
-			m.authInput.Reset()
-			m.authError = ""
+			m.auth.stage = stageMenu
+			m.auth.input.Blur()
+			m.auth.input.Reset()
+			m.auth.error = ""
 
 		case stagePassword:
-			m.authStage = stageUsername
-			m.authInput.Reset()
-			m.authInput.EchoMode = textinput.EchoNormal
-			m.authInput.Placeholder = "username"
-			m.authError = ""
+			m.auth.stage = stageUsername
+			m.auth.input.Reset()
+			m.auth.input.EchoMode = textinput.EchoNormal
+			m.auth.input.Placeholder = "username"
+			m.auth.error = ""
 		}
 		return m, nil
 	}
 
 	if msg.String() != "enter" {
 		var cmd tea.Cmd
-		m.authInput, cmd = m.authInput.Update(msg)
+		m.auth.input, cmd = m.auth.input.Update(msg)
 		return m, cmd
 	}
 
-	value := strings.TrimSpace(m.authInput.Value())
-	m.authInput.Reset()
+	value := strings.TrimSpace(m.auth.input.Value())
+	m.auth.input.Reset()
 
-	switch m.authStage {
+	switch m.auth.stage {
 
 	case stageUsername:
 		if value == "" {
 			return m, nil
 		}
 
-		m.pendingUser = value
-		m.authStage = stagePassword
-		m.authInput.EchoMode = textinput.EchoPassword
-		m.authInput.Placeholder = "password"
-		m.authInput.Focus()
+		m.auth.pendingUser = value
+		m.auth.stage = stagePassword
+		m.auth.input.EchoMode = textinput.EchoPassword
+		m.auth.input.Placeholder = "password"
+		m.auth.input.Focus()
 
 		return m, nil
 
@@ -352,15 +342,15 @@ func (m Model) handleAuthKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 			return m, nil
 		}
 
-		m.authError = ""
-		m.authStage = stageAuthenticating
+		m.auth.error = ""
+		m.auth.stage = stageAuthenticating
 
-		m.authInput.EchoMode = textinput.EchoNormal
-		m.authInput.Placeholder = "username"
+		m.auth.input.EchoMode = textinput.EchoNormal
+		m.auth.input.Placeholder = "username"
 
-		return m, sendCmd(m.encoder, protocol.Message{
-			Type:     m.authChoice,
-			Username: m.pendingUser,
+		return m, sendCmd(m.connection.enc, protocol.Message{
+			Type:     m.auth.choice,
+			Username: m.auth.pendingUser,
 			Password: value,
 		})
 	}
@@ -369,15 +359,15 @@ func (m Model) handleAuthKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleChatKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
-	if m.awaitingRoomPassword != "" && msg.String() == "esc" {
-		m.awaitingRoomPassword = ""
+	if m.chat.awaitingRoomPassword != "" && msg.String() == "esc" {
+		m.chat.awaitingRoomPassword = ""
 
-		m.chatInput.Reset()
-		m.chatInput.EchoMode = textinput.EchoNormal
-		m.chatInput.Placeholder = "message or /command"
-		m.chatInput.Prompt = "> "
+		m.chat.input.Reset()
+		m.chat.input.EchoMode = textinput.EchoNormal
+		m.chat.input.Placeholder = "message or /command"
+		m.chat.input.Prompt = "> "
 
-		m.chatLog = append(m.chatLog, chatEntry{
+		m.chat.entries = append(m.chat.entries, chatEntry{
 			kind: "system",
 			text: "Cancelled join.",
 		})
@@ -387,27 +377,27 @@ func (m Model) handleChatKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	if msg.String() != "enter" {
 		var cmd tea.Cmd
-		m.chatInput, cmd = m.chatInput.Update(msg)
+		m.chat.input, cmd = m.chat.input.Update(msg)
 		return m, cmd
 	}
 
-	value := strings.TrimSpace(m.chatInput.Value())
-	m.chatInput.Reset()
+	value := strings.TrimSpace(m.chat.input.Value())
+	m.chat.input.Reset()
 
 	if value == "" {
 		return m, nil
 	}
 
-	if m.awaitingRoomPassword != "" {
-		room := m.awaitingRoomPassword
-		m.awaitingRoomPassword = ""
+	if m.chat.awaitingRoomPassword != "" {
+		room := m.chat.awaitingRoomPassword
+		m.chat.awaitingRoomPassword = ""
 
-		m.chatInput.Reset()
-		m.chatInput.EchoMode = textinput.EchoNormal
-		m.chatInput.Placeholder = "message or /command"
-		m.chatInput.Prompt = "> "
+		m.chat.input.Reset()
+		m.chat.input.EchoMode = textinput.EchoNormal
+		m.chat.input.Placeholder = "message or /command"
+		m.chat.input.Prompt = "> "
 
-		return m, sendCmd(m.encoder, protocol.Message{
+		return m, sendCmd(m.connection.enc, protocol.Message{
 			Type:    "command",
 			Message: "/join " + room + " " + value,
 		})
@@ -418,7 +408,7 @@ func (m Model) handleChatKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		msgType = "command"
 	}
 
-	return m, sendCmd(m.encoder, protocol.Message{
+	return m, sendCmd(m.connection.enc, protocol.Message{
 		Type:    msgType,
 		Message: value,
 	})
@@ -432,20 +422,20 @@ func formatTime(t time.Time) string {
 }
 
 func (m *Model) refreshViewport() {
-	m.viewport.SetContent(renderEntries(m.chatLog))
+	m.chat.viewport.SetContent(renderEntries(m.chat.entries))
 }
 
 func (m *Model) addChatEntry(entry chatEntry) {
-	wasAtBottom := m.viewport.AtBottom()
+	wasAtBottom := m.chat.viewport.AtBottom()
 
-	m.chatLog = append(m.chatLog, entry)
-	m.viewport.SetContent(renderEntries(m.chatLog))
+	m.chat.entries = append(m.chat.entries, entry)
+	m.chat.viewport.SetContent(renderEntries(m.chat.entries))
 
 	if wasAtBottom {
-		m.viewport.GotoBottom()
-		m.newMessages = 0
+		m.chat.viewport.GotoBottom()
+		m.chat.newMessages = 0
 	} else {
-		m.newMessages++
+		m.chat.newMessages++
 	}
 }
 

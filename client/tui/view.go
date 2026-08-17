@@ -15,14 +15,14 @@ const (
 )
 
 func (m Model) View() string {
-	if m.connectionState == connectionDisconnected {
+	if m.connection.state == connectionDisconnected {
 		return m.renderDisconnected()
 	}
 
 	if m.screen == screenChat {
 		header := m.renderHeader()
 
-		chatPane := viewportStyle.Render(m.viewport.View())
+		chatPane := viewportStyle.Render(m.chat.viewport.View())
 
 		if newMessages := m.renderNewMessages(); newMessages != "" {
 			chatPane = lipgloss.JoinVertical(
@@ -42,30 +42,30 @@ func (m Model) View() string {
 			"\n\n" +
 			body +
 			"\n\n" +
-			inputStyle.Render(m.chatInput.View())
+			inputStyle.Render(m.chat.input.View())
 	}
 
 	var errorLine string
 
-	if m.authError != "" {
-		errorLine = errorStyle.Render("Error: " + m.authError + "\n\n")
+	if m.auth.error != "" {
+		errorLine = errorStyle.Render("Error: " + m.auth.error + "\n\n")
 	}
 
-	if m.authStage == stageMenu {
-		return errorLine + m.authMenu.View()
+	if m.auth.stage == stageMenu {
+		return errorLine + m.auth.menu.View()
 	}
 
-	if m.authStage == stageAuthenticating {
+	if m.auth.stage == stageAuthenticating {
 		return errorLine + "Authenticating...\n\n"
 	}
 
-	label := m.authChoice + " - username:"
+	label := m.auth.choice + " - username:"
 
-	if m.authStage == stagePassword {
-		label = m.authChoice + " - password:"
+	if m.auth.stage == stagePassword {
+		label = m.auth.choice + " - password:"
 	}
 
-	return errorLine + label + "\n\n" + m.authInput.View()
+	return errorLine + label + "\n\n" + m.auth.input.View()
 }
 
 func (m Model) renderSidebar() string {
@@ -74,7 +74,7 @@ func (m Model) renderSidebar() string {
 	usersTitle := "USERS"
 	roomsTitle := "ROOMS"
 
-	if m.activeSidebar == tabUsers {
+	if m.chat.activeSidebar == tabUsers {
 		usersTitle = sidebarTitleStyle.Render(usersTitle)
 		roomsTitle = sidebarInactiveStyle.Render(roomsTitle)
 	} else {
@@ -87,9 +87,9 @@ func (m Model) renderSidebar() string {
 	b.WriteString(roomsTitle)
 	b.WriteString("\n\n")
 
-	switch m.activeSidebar {
+	switch m.chat.activeSidebar {
 	case tabUsers:
-		for _, user := range m.users {
+		for _, user := range m.chat.users {
 			line := "• " + user.Nickname
 			if user.Owner {
 				line += " (owner)"
@@ -101,7 +101,7 @@ func (m Model) renderSidebar() string {
 			b.WriteString("Tab to switch tabs")
 		}
 	case tabRooms:
-		for i, r := range m.rooms {
+		for i, r := range m.chat.rooms {
 			lock := ""
 			if r.HasPassword {
 				lock = "🔒"
@@ -109,7 +109,7 @@ func (m Model) renderSidebar() string {
 
 			line := fmt.Sprintf("%s (%d)%s", r.Name, r.Users, lock)
 
-			if i == m.selectedRoom {
+			if i == m.chat.selectedRoom {
 				line = "> " + line
 				b.WriteString(sidebarTitleStyle.Render(line))
 			} else {
@@ -211,15 +211,15 @@ func renderEntries(entries []chatEntry) string {
 }
 
 func (m Model) renderHeader() string {
-	title := "#" + m.roomName
+	title := "#" + m.chat.roomName
 
-	if m.roomTopic != "" {
-		title += " - " + m.roomTopic
+	if m.chat.roomTopic != "" {
+		title += " - " + m.chat.roomTopic
 	}
 
 	status := fmt.Sprintf(
 		"Users: %d",
-		len(m.users),
+		len(m.chat.users),
 	)
 
 	return headerStyle.Render(
@@ -253,11 +253,11 @@ func renderWelcomeEntry(e chatEntry) string {
 }
 
 func (m Model) renderNewMessages() string {
-	if m.newMessages == 0 || m.viewport.AtBottom() {
+	if m.chat.newMessages == 0 || m.chat.viewport.AtBottom() {
 		return ""
 	}
 
-	return newMessagesStyle.Render(fmt.Sprintf("↓ %d new messages", m.newMessages))
+	return newMessagesStyle.Render(fmt.Sprintf("↓ %d new messages", m.chat.newMessages))
 }
 
 func (m Model) renderDisconnected() string {
