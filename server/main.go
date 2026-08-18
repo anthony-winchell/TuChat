@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"strconv"
 	"time"
 )
 
@@ -13,16 +14,10 @@ var ErrUsernameTaken = errors.New("Username already taken")
 var ErrUsernameFormat = errors.New(`Username cannot contain ':'. Must be between 3 and 13 characters long`)
 var ErrUserNotFound = errors.New("User not found")
 
-func main() {
-	listener, err := net.Listen("tcp", ":8080")
-	if err != nil {
-		log.Println(err)
-		return
-	}
 
+func main() {
 	server := &Server{
 		name:      "TuChat",
-		listener:  listener,
 		clients:   make(map[string]*Client),
 		users:     make(map[string]*User),
 		conns:     make(map[net.Conn]struct{}),
@@ -51,10 +46,23 @@ func main() {
 				log.Println(err)
 			}
 		}
-
 	}
 
+	address := net.JoinHostPort(server.BindAddress(), strconv.Itoa(server.Port()))
+
+	listener, err := net.Listen("tcp", address)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	server.listener = listener 
+
 	log.Println("Starting Server... ")
+	log.Println("Listening on: ", listener.Addr())
+	if server.AdvertisedAddress() != "" {
+		log.Println("Clients can connect using: ", server.AdvertisedAddress())
+	}
 	go server.Start()
 
 	signals := make(chan os.Signal, 1)
@@ -71,5 +79,9 @@ func main() {
 
 func createDefaultState(server *Server) {
 	server.SetName("TuChat")
+
+	server.SetBindAddress("0.0.0.0")
+	server.SetPort(8080)
+
 	server.AddRoom(NewRoom("general"))
 }

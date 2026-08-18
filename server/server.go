@@ -252,3 +252,45 @@ func (s *Server) requireServerPassword(client *Client) error {
 		}
 	}
 }
+
+func (s *Server) BindAddress() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.bindAddress
+}
+
+func (s *Server) SetBindAddress(address string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.bindAddress = address
+}
+
+func (s *Server) Port() int {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.port
+}
+
+func (s *Server) SetPort(port int) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.port = port
+}
+
+func (s *Server) AdvertisedAddress() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	return s.advertisedAddress
+}
+
+func (s *Server) SetAdvertisedAddress(address string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	s.advertisedAddress = address
+}

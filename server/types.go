@@ -46,6 +46,10 @@ type Server struct {
 
 	name string
 
+	bindAddress       string
+	port              int
+	advertisedAddress string
+
 	welcomeMessage string
 
 	owner string
@@ -69,12 +73,17 @@ type Server struct {
 }
 
 type Config struct {
-	ServerName         string       `json:"server_name"`
-	Owner              string       `json:"owner"`
-	ServerPasswordHash string       `json:"server_password_hash"`
-	WelcomeMessage     string       `json:"welcome_message"`
-	Rooms              []RoomConfig `json:"rooms"`
-	Users              []UserConfig `json:"users"`
+	ServerName        string `json:"server_name"`
+	BindAddress       string `json:"bind_address"`
+	Port              int    `json:"port"`
+	AdvertisedAddress string `json:"advertised_address"`
+
+	Owner              string `json:"owner"`
+	ServerPasswordHash string `json:"server_password_hash"`
+
+	WelcomeMessage string       `json:"welcome_message"`
+	Rooms          []RoomConfig `json:"rooms"`
+	Users          []UserConfig `json:"users"`
 }
 
 type UserConfig struct {

@@ -7,8 +7,11 @@ import (
 
 func (s *Server) SaveConfig() error {
 	config := Config{
-		ServerName: s.Name(),
-		Owner:      s.Owner(),
+		ServerName:         s.Name(),
+		BindAddress:        s.BindAddress(),
+		Port:               s.Port(),
+		AdvertisedAddress:  s.AdvertisedAddress(),
+		Owner:              s.Owner(),
 		ServerPasswordHash: s.PasswordHash(),
 		WelcomeMessage:     s.WelcomeMessage(),
 	}
@@ -54,6 +57,11 @@ func (s *Server) loadConfig() error {
 	}
 
 	s.SetName(config.ServerName)
+
+	s.SetBindAddress(config.BindAddress)
+	s.SetPort(config.Port)
+	s.SetAdvertisedAddress(config.AdvertisedAddress)
+
 	s.SetOwner(config.Owner)
 	s.RestorePasswordHash(config.ServerPasswordHash)
 	s.SetWelcomeMessage(config.WelcomeMessage)
