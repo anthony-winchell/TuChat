@@ -1,8 +1,8 @@
 package tui
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 	"strings"
 	"tuchat/protocol"
 )
@@ -81,6 +81,13 @@ func (m Model) submitAuthInput() (tea.Model, tea.Cmd) {
 
 	switch m.auth.stage {
 
+	case stageServerPassword:
+		return m, sendCmd(m.connection.enc,
+			protocol.Message{
+				Type:     "server_password",
+				Password: value,
+			})
+
 	case stageUsername:
 		m.auth.pendingUser = value
 		m.auth.stage = stagePassword
@@ -131,6 +138,13 @@ func (m Model) handleAuthSuccess(msg serverMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleAuthError(msg serverMsg) (tea.Model, tea.Cmd) {
 	m.auth.error = msg.Message
+
+	if m.auth.stage == stageServerPassword {
+		m.auth.input.Reset()
+		m.auth.input.EchoMode = textinput.EchoPassword
+		m.auth.input.Placeholder = "server password"
+		return m, listenCmd(m.connection.dec)
+	}
 
 	if m.auth.stage == stageAuthenticating &&
 		msg.Message == "invalid password" {

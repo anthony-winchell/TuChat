@@ -79,6 +79,7 @@ const (
 	stageUsername
 	stagePassword
 	stageAuthenticating
+	stageServerPassword
 )
 
 type authOption string

@@ -8,6 +8,12 @@ import (
 func (m Model) handleServerMessage(msg serverMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type {
 
+	case "server_password_prompt":
+		return m.handleServerPasswordPrompt(msg)
+
+	case "auth_prompt":
+		return m.handleAuthPrompt(msg)
+
 	case "auth_success":
 		return m.handleAuthSuccess(msg)
 

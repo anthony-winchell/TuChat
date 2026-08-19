@@ -9,6 +9,11 @@ func (m Model) renderAuth() string {
 		)
 	}
 
+	if m.auth.stage == stageServerPassword {
+		return errorLine + "This server requires a password\nEnter it below:\n\n" +
+			m.auth.input.View()
+	}
+
 	if m.auth.stage == stageMenu {
 		return errorLine + m.auth.menu.View()
 	}
