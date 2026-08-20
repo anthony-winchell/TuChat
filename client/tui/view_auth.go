@@ -10,26 +10,34 @@ func (m Model) renderAuth() string {
 	}
 
 	if m.auth.stage == stageServerPassword {
-		return errorLine + "This server requires a password\nEnter it below:\n\n" +
-			m.auth.input.View()
+		m.auth.input.Prompt = "🔒 "
+
+		content := authTitleStyle.Render("🔒 Server Password Required") +
+			"\n\n" +
+			"This server is locked. Enter the password to continue:" +
+			"\n\n" +
+			authInputStyle.Render(m.auth.input.View())
+
+		return errorLine + "\n\n" + content
 	}
 
 	if m.auth.stage == stageMenu {
-		return errorLine + m.auth.menu.View()
+		return errorLine + "\n\n" + m.auth.menu.View()
 	}
 
 	if m.auth.stage == stageAuthenticating {
-		return errorLine + "Authenticating...\n\n"
+		return errorLine + "\n\n" + "Authenticating...\n\n"
 	}
 
-	label := m.auth.choice + " - username:"
+	label := authTitleStyle.Render(m.auth.choice + " - username:")
 
 	if m.auth.stage == stagePassword {
-		label = m.auth.choice + " - password:"
+		label = authTitleStyle.Render(m.auth.choice + " - password:")
 	}
 
 	return errorLine +
+		"\n\n" +
 		label +
 		"\n\n" +
-		m.auth.input.View()
+		authInputStyle.Render(m.auth.input.View())
 }

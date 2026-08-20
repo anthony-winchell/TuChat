@@ -47,7 +47,7 @@ var (
 				PaddingLeft(1)
 
 	inputStyle = lipgloss.NewStyle().
-			Border(lipgloss.RoundedBorder()).
+			Border(lipgloss.NormalBorder()).
 			Padding(0, 1)
 
 	errorStyle = lipgloss.NewStyle().
@@ -55,7 +55,16 @@ var (
 			Bold(true)
 
 	newMessagesStyle = lipgloss.NewStyle().
-	Align(lipgloss.Center).
-	Foreground(colorAccent).
-	Italic(true)
+				Align(lipgloss.Center).
+				Foreground(colorAccent).
+				Italic(true)
+
+	authTitleStyle = lipgloss.NewStyle().
+			Bold(true).
+			Foreground(colorAccent)
+
+	authInputStyle = lipgloss.NewStyle().
+			Border(lipgloss.RoundedBorder()).
+			BorderForeground(colorAccent).
+			Width(35)
 )
