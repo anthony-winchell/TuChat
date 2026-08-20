@@ -1,10 +1,10 @@
 package tui
 
 import (
+	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"strings"
 	"tuchat/protocol"
-	"github.com/charmbracelet/bubbles/textinput"
 )
 
 func (m *Model) handleChatMessage(msg serverMsg) {
@@ -88,6 +88,18 @@ func (m Model) handleChatInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	m.chat.input.Reset()
 
 	if value == "" {
+		return m, nil
+	}
+
+	if value == "/clear" {
+		m.chat.entries = nil
+		m.chat.newMessages = 0
+		m.addChatEntry(
+			chatEntry{
+				kind: "system",
+				text: "Cleared chat history. Use /history to recover.",
+			},
+		)
 		return m, nil
 	}
 
@@ -182,4 +194,3 @@ func renderWelcomeMessage(msg serverMsg) string {
 		"{nickname}", msg.Nickname,
 	).Replace(msg.Message)
 }
-
