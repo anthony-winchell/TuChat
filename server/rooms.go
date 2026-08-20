@@ -63,6 +63,14 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 	}
 
 	if err := client.Send(protocol.Message{
+		Type:      "room_joined",
+		RoomName:  roomName,
+		Timestamp: time.Now(),
+	}); err != nil {
+		log.Println(err)
+	}
+
+	if err := client.Send(protocol.Message{
 		Type:      "system",
 		Message:   "Joined room: " + roomName,
 		Timestamp: time.Now(),

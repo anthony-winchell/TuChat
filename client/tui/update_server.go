@@ -20,6 +20,9 @@ func (m Model) handleServerMessage(msg serverMsg) (tea.Model, tea.Cmd) {
 	case "nick_success":
 		return m.handleNickSuccess(msg)
 
+	case "room_joined":
+		return m.handleJoinedRoom()
+
 	case "join_password_required":
 		return m.handleJoinPasswordRequired(msg)
 
@@ -91,4 +94,11 @@ func (m *Model) handleRoomSelection(msg serverMsg) {
 		}
 	}
 
+}
+
+func (m Model) handleJoinedRoom() (tea.Model, tea.Cmd) {
+	m.chat.entries = nil
+	m.chat.newMessages = 0
+
+	return m, listenCmd(m.connection.dec)
 }
