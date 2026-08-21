@@ -29,10 +29,17 @@ func (m *Model) handleChatMessage(msg serverMsg) {
 			self:      msg.Nickname == m.chat.selfNickname,
 		})
 
-	case "system", "announcement":
+	case "system":
 		m.addChatEntry(chatEntry{
 			kind:      "system",
 			text:      msg.Message,
+			timestamp: msg.Timestamp,
+		})
+
+	case "announcement": 
+		m.addChatEntry(chatEntry{
+			kind: "announcement",
+			text: msg.Message,
 			timestamp: msg.Timestamp,
 		})
 
@@ -194,3 +201,4 @@ func renderWelcomeMessage(msg serverMsg) string {
 		"{nickname}", msg.Nickname,
 	).Replace(msg.Message)
 }
+

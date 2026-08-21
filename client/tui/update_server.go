@@ -35,9 +35,13 @@ func (m Model) handleServerMessage(msg serverMsg) (tea.Model, tea.Cmd) {
 
 	case "rooms":
 		m.handleRoomSelection(msg)
+
 	case "roominfo":
 		m.chat.roomName = msg.RoomName
 		m.chat.roomTopic = msg.RoomTopic
+
+	case "server_name":
+		m.handleServerName(msg)
 
 	case "error":
 		return m.handleServerError(msg)
@@ -100,5 +104,13 @@ func (m Model) handleJoinedRoom() (tea.Model, tea.Cmd) {
 	m.chat.entries = nil
 	m.chat.newMessages = 0
 
+	return m, listenCmd(m.connection.dec)
+}
+
+
+func (m *Model) handleServerName(msg serverMsg) (tea.Model, tea.Cmd) {
+	m.serverName = msg.Message
+
+	m.refreshViewport()
 	return m, listenCmd(m.connection.dec)
 }

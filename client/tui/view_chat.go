@@ -2,9 +2,10 @@ package tui
 
 import (
 	"fmt"
-	"github.com/charmbracelet/lipgloss"
 	"strings"
 	"time"
+
+	"github.com/charmbracelet/lipgloss"
 )
 
 func (m Model) renderChat() string {
@@ -37,19 +38,17 @@ func (m Model) renderChat() string {
 
 func (m Model) renderHeader() string {
 	title := "#" + m.chat.roomName
-
 	if m.chat.roomTopic != "" {
 		title += " - " + m.chat.roomTopic
 	}
 
-	status := fmt.Sprintf(
-		"Users: %d",
-		len(m.chat.users),
-	)
+	status := fmt.Sprintf("Users: %d", len(m.chat.users))
 
 	return headerStyle.Render(
 		lipgloss.JoinHorizontal(
 			lipgloss.Top,
+			m.serverName,
+			"  |  ",
 			title,
 			"  ",
 			status,
@@ -101,9 +100,14 @@ func renderEntries(entries []chatEntry) string {
 			b.WriteString(systemStyle.Render(e.text))
 			b.WriteString("\n")
 
+		case "announcement":
+			b.WriteString(ts)
+			b.WriteString(announcementStyle.Render(authTitleStyle.Render("ANNOUNCEMENT") + "\n\n\n" + e.text))
+			b.WriteString("\n")
+
 		case "room_joined":
 			b.WriteString(ts)
-			b.WriteString(systemStyle.Render("Joined #"+e.text))
+			b.WriteString(systemStyle.Render("Joined #" + e.text))
 			b.WriteString("\n")
 
 		case "topic":

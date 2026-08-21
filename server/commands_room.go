@@ -73,6 +73,12 @@ func (s *Server) commandJoinRoom(client *Client, roomName string, password strin
 	return false
 }
 
+func (s *Server) commandLeaveRoom(client *Client) bool {
+	s.LeaveRoom(client)
+
+	return false
+}
+
 func (s *Server) commandRenameRoom(name string, client *Client) bool {
 
 	room := client.Room()
@@ -127,19 +133,27 @@ func (s *Server) commandDeleteRoom(client *Client) bool {
 func (s *Server) commandTopic(client *Client) bool {
 	room := client.Room()
 
-	if err := client.Send(protocol.Message{
-		Type:          "roominfo",
-		RoomName:      room.Name(),
-		RoomTopic:     room.Topic(),
-		RoomOwner:     room.Owner(),
-		RoomAdmins:    room.AdminsUsernames(),
-		RoomUserCount: room.Size(),
-		Timestamp:     time.Now(),
-	}); err != nil {
-		log.Println(err)
-	}
+	room.broadcastRoomInfo()
 
-	return false
+	if room.Topic() == "" {
+		if err := client.Send(protocol.Message{
+			Type:      "system",
+			Message:   "No topic set",
+			Timestamp: time.Now(),
+		}); err != nil {
+			log.Println(err)
+		}
+		return false
+	} else {
+		if err := client.Send(protocol.Message{
+			Type:      "system",
+			Message:   "Topic: " + room.Topic(),
+			Timestamp: time.Now(),
+		}); err != nil {
+			log.Println(err)
+		}
+		return false
+	}
 }
 
 func (s *Server) commandSetTopic(client *Client, topic string) bool {

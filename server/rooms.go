@@ -91,6 +91,19 @@ func (s *Server) JoinRoom(client *Client, roomName string, password string) erro
 	return nil
 }
 
+func (s *Server) LeaveRoom(client *Client) error {
+	currentRoom := client.Room()
+
+	if currentRoom.Name() == "general" {
+		return errors.New("general is the default room and cannot be left")
+	}
+
+	if err := s.JoinRoom(client, "general", ""); err != nil {
+		return err
+	}
+
+	return nil
+}
 func (r *Room) broadcastUserList() {
 	clients := r.Users()
 

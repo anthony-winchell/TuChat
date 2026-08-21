@@ -18,6 +18,8 @@ type Model struct {
 	chat       chatState
 	ui         uiState
 
+	serverName string
+
 	screen screen
 	err    error
 }

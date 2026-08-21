@@ -67,4 +67,10 @@ var (
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(colorAccent).
 			Width(35)
+
+	announcementStyle = lipgloss.NewStyle().
+				Bold(true).
+				Border(lipgloss.DoubleBorder()).
+				Padding(3, 5).
+				BorderForeground(colorAccent)
 )

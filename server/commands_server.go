@@ -41,6 +41,11 @@ func (s *Server) commandServerRename(client *Client, name string) bool {
 		Message: client.User().Nickname() + " renamed the server to " + name,
 	}, nil)
 
+	s.sendToAll(protocol.Message{
+		Type: "server_name",
+		Message: s.Name(),
+	}, nil)
+
 	return false
 }
 

@@ -116,6 +116,14 @@ func (s *Server) InitializeCommands() {
 			Usage: "/join <room> [password]",
 		},
 
+		"/leave": {
+			Description: "Leaves the current room",
+			Handler: func(s *Server, c *Client, args []string) bool {
+				return s.commandLeaveRoom(c)
+			},
+			Usage: "/leave",
+		},
+
 		"/kick": {
 			Description: "Kicks a user from the room (admin only)",
 			Handler: func(s *Server, c *Client, args []string) bool {
@@ -245,7 +253,9 @@ func (s *Server) InitializeCommands() {
 				}
 				return s.commandSetWelcomeMessage(c, message)
 			},
-			Usage: "/setwelcome <message> (omit to reset to default. {server} and {nickname} will replace with server name and user's nickname)",
+			Usage: "/setwelcome <message> (omit to reset to default. \n" +
+				"{server} and {nickname} will replace with server name \n" +
+				" and user's nickname)",
 		},
 		"/addadmin": {
 			Description: "Adds an admin to the room (owner only)",

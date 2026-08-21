@@ -129,6 +129,14 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 			break
 		}
 	}
+
+	if err := client.Send(protocol.Message{
+		Type: "server_name",
+		Message: s.Name(),
+	}); err != nil {
+		return nil, err
+	}
+
 	if err := s.JoinRoom(client, "general", ""); err != nil {
 		return nil, err
 	}
