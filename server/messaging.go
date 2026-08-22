@@ -23,6 +23,11 @@ func (s *Server) broadcastMessage(text string, sender *Client) {
 
 	room := sender.Room()
 
+	if room == nil {
+		sendError(sender, "You are not in a room")
+		return
+	}
+
 	chatlog, err := s.getChatLog(room.Name())
 	if err != nil {
 		log.Println(err)

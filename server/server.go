@@ -5,6 +5,7 @@ import (
 	"errors"
 	"log"
 	"net"
+	"runtime/debug"
 	"time"
 	"tuchat/protocol"
 )
@@ -26,6 +27,11 @@ func (s *Server) Start() {
 		s.addConnection(conn)
 
 		s.wg.Go(func() {
+			defer func() {
+				if r := recover(); r != nil {
+					log.Printf("recovered panic in connection handler: %v\n%s", r, debug.Stack())
+				}
+			}()
 			s.handleConnection(conn)
 		})
 	}
@@ -121,7 +127,7 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 				continue
 			}
 			if err := client.Send(protocol.Message{
-				Type: "auth_success",
+				Type:     "auth_success",
 				Nickname: client.User().Nickname(),
 			}); err != nil {
 				return nil, err
@@ -131,7 +137,7 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 	}
 
 	if err := client.Send(protocol.Message{
-		Type: "server_name",
+		Type:    "server_name",
 		Message: s.Name(),
 	}); err != nil {
 		return nil, err
@@ -171,9 +177,9 @@ func (s *Server) handleConnection(conn net.Conn) {
 		room.broadcastUserList()
 
 		room.Broadcast(protocol.Message{
-			Type: "leave",
-			Username: client.User().Username(),
-			Nickname: client.User().Nickname(),
+			Type:      "leave",
+			Username:  client.User().Username(),
+			Nickname:  client.User().Nickname(),
 			Timestamp: time.Now(),
 		}, nil)
 	}
