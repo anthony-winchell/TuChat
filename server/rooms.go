@@ -104,6 +104,7 @@ func (s *Server) LeaveRoom(client *Client) error {
 
 	return nil
 }
+
 func (r *Room) broadcastUserList() {
 	clients := r.Users()
 
@@ -548,21 +549,24 @@ func (s *Server) DeleteRoom(r *Room) error {
 	}
 
 	general := s.rooms["general"]
-
-	delete(s.rooms, name)
-
 	chatLog, hasChatLog := s.chatLogs[name]
-	if hasChatLog {
-		delete(s.chatLogs, name)
-	}
-
 	s.mu.Unlock()
 
 	if hasChatLog {
-		if err := chatLog.Delete(); err != nil {
+		err := chatLog.Delete()
+
+		s.mu.Lock()
+		delete(s.chatLogs, name)
+		s.mu.Unlock()
+
+		if err != nil {
 			return err
 		}
 	}
+
+	s.mu.Lock()
+	delete(s.rooms, name)
+	s.mu.Unlock()
 
 	for _, client := range s.roomSnapshot(r) {
 		if err := client.Send(protocol.Message{
