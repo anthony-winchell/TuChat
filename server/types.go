@@ -42,6 +42,7 @@ type Room struct {
 
 type Server struct {
 	mu       sync.RWMutex
+	saveMu   sync.Mutex
 	listener net.Listener
 
 	name string

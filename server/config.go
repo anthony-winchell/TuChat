@@ -6,9 +6,12 @@ import (
 )
 
 func (s *Server) SaveConfig() error {
+	s.saveMu.Lock()
+	defer s.saveMu.Unlock()
+
 	config := Config{
-		ServerName: s.Name(),
-		Owner:      s.Owner(),
+		ServerName:         s.Name(),
+		Owner:              s.Owner(),
 		ServerPasswordHash: s.PasswordHash(),
 		WelcomeMessage:     s.WelcomeMessage(),
 	}
@@ -36,10 +39,11 @@ func (s *Server) SaveConfig() error {
 		return err
 	}
 
-	if err = os.WriteFile("config.json", data, 0644); err != nil {
+	const tmpPath = "config.json.tmp"
+	if err = os.WriteFile(tmpPath, data, 0644); err != nil {
 		return err
 	}
-	return nil
+	return os.Rename(tmpPath, "config.json")
 }
 
 func (s *Server) loadConfig() error {
