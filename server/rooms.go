@@ -318,6 +318,7 @@ func (r *Room) AdminsUsernames() []string {
 func (r *Room) SetOwner(username string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+	username = strings.ToLower(username)
 
 	r.owner = username
 	r.admins[username] = struct{}{}
@@ -414,7 +415,7 @@ func (r *Room) RestoreAdmin(username string) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	r.admins[username] = struct{}{}
+	r.admins[strings.ToLower(username)] = struct{}{}
 }
 
 func (r *Room) SetPassword(password string) error {

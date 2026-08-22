@@ -81,7 +81,7 @@ func (s *Server) findClient(username string) *Client {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	return s.clients[username]
+	return s.clients[strings.ToLower(username)]
 }
 
 func (s *Server) findClientByNickname(nickname string) *Client {

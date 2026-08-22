@@ -74,6 +74,7 @@ func (s *Server) AddUser(user *User) error {
 func (s *Server) FindUser(username string) (*User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
+	username = strings.ToLower(username)
 
 	if _, exists := s.users[username]; !exists {
 		return nil, ErrUserNotFound
@@ -172,7 +173,7 @@ func (s *Server) nicknameTaken(nickname string, except *Client) error {
 
 func NewUser(username string, password string) (*User, error) {
 	u := &User{
-		username: username,
+		username: strings.ToLower(username),
 		nickname: username,
 	}
 
@@ -185,7 +186,7 @@ func NewUser(username string, password string) (*User, error) {
 
 func RestoreUser(username string, nickname string, passwordHash string) *User {
 	return &User{
-		username:     username,
+		username:     strings.ToLower(username),
 		nickname:     nickname,
 		passwordHash: passwordHash,
 	}

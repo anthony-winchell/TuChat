@@ -53,7 +53,7 @@ func (s *Server) Owner() string {
 func (s *Server) SetOwner(owner string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	s.owner = owner
+	s.owner = strings.ToLower(owner)
 }
 
 func (s *Server) RequireServerOwner(client *Client) error {
