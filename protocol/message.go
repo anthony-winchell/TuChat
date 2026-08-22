@@ -26,6 +26,8 @@ type Message struct {
 	Timestamp time.Time `json:"timestamp"`
 }
 
+const AuthInvalidCredentials = "invalid username or password"
+
 type RoomSummary struct {
 	Name        string `json:"name"`
 	Users       int    `json:"users"`

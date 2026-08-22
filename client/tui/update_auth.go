@@ -147,7 +147,7 @@ func (m Model) handleAuthError(msg serverMsg) (tea.Model, tea.Cmd) {
 	}
 
 	if m.auth.stage == stageAuthenticating &&
-		msg.Message == "invalid password" {
+		msg.Message == protocol.AuthInvalidCredentials {
 
 		m.auth.stage = stagePassword
 		m.auth.input.EchoMode = textinput.EchoPassword

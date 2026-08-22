@@ -1,10 +1,12 @@
 package main
 
 import (
-	"golang.org/x/crypto/bcrypt"
 	"errors"
-	"strings"
 	"log"
+	"strings"
+	"tuchat/protocol"
+
+	"golang.org/x/crypto/bcrypt"
 )
 
 func (u *User) Username() string {
@@ -105,11 +107,11 @@ func (s *Server) RegisterUser(username string, password string) (*User, error) {
 func (s *Server) AuthenticateUser(username string, password string) (*User, error) {
 	user, err := s.FindUser(username)
 	if err != nil {
-		return nil, err
+		return nil, errors.New(protocol.AuthInvalidCredentials)
 	}
 
 	if err := user.CheckPassword(password); err != nil {
-		return nil, errors.New("invalid password")
+		return nil, errors.New(protocol.AuthInvalidCredentials)
 	}
 
 	return user, nil

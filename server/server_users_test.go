@@ -2,8 +2,8 @@ package main
 
 import (
 	"errors"
-	"testing"
 	"net"
+	"testing"
 )
 
 func newTestServer() *Server {
@@ -258,42 +258,28 @@ func TestServerAuthenticateUser(t *testing.T) {
 	}
 }
 
-func TestServerAuthenticateUserWrongPassword(t *testing.T) {
+func TestServerAuthenticateUserErrorsAreIndistinguishable(t *testing.T) {
 	server := newTestServer()
 
-	_, err := server.RegisterUser("anthony", "password")
-	if err != nil {
+	if _, err := server.RegisterUser("anthony", "password"); err != nil {
 		t.Fatal(err)
 	}
 
-	_, err = server.AuthenticateUser("anthony", "wrong")
+	_, unknownUser := server.AuthenticateUser("ghost", "password")
+	_, badPassword := server.AuthenticateUser("anthony", "wrong")
 
-	if err == nil {
-		t.Fatal("expected authentication to fail")
+	if unknownUser == nil || badPassword == nil {
+		t.Fatal("expected both authentication attempts to fail")
 	}
 
-	if err.Error() != "invalid password" {
+	if unknownUser.Error() != badPassword.Error() {
 		t.Fatalf(
-			"expected %q, got %q",
-			"invalid password",
-			err.Error(),
+			"auth failures must not leak account existence: unknown user = %q, bad password = %q",
+			unknownUser.Error(),
+			badPassword.Error(),
 		)
 	}
 }
-
-func TestServerAuthenticateUserNotFound(t *testing.T) {
-	server := newTestServer()
-
-	_, err := server.AuthenticateUser("anthony", "password")
-
-	if !errors.Is(err, ErrUserNotFound) {
-		t.Fatalf(
-			"expected ErrUserNotFound, got %v",
-			err,
-		)
-	}
-}
-
 func TestServerNicknameTaken(t *testing.T) {
 	server := newTestServer()
 
