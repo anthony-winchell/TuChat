@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"fmt"
 	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
@@ -18,7 +17,6 @@ func (m Model) handleConnected(msg connectedMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleConnectionError(msg connErrMsg) (tea.Model, tea.Cmd) {
 	m.connection.state = connectionDisconnected
 	m.err = msg.err
-	fmt.Println("DEBUG: connection disconnected")
 	return m, nil
 }
 

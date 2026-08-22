@@ -19,7 +19,7 @@ func (s *Server) sendToAll(message protocol.Message, except *Client) {
 
 func (s *Server) broadcastMessage(text string, sender *Client) {
 
-	time := time.Now()
+	now := time.Now()
 
 	room := sender.Room()
 
@@ -33,7 +33,7 @@ func (s *Server) broadcastMessage(text string, sender *Client) {
 		Username:  sender.User().Username(),
 		Nickname:  sender.User().Nickname(),
 		Message:   text,
-		Timestamp: time,
+		Timestamp: now,
 	})
 	if err != nil {
 		log.Println("Failed to write to chatlog:", err)
@@ -44,7 +44,6 @@ func (s *Server) broadcastMessage(text string, sender *Client) {
 		Username:  sender.User().Username(),
 		Nickname:  sender.User().Nickname(),
 		Message:   text,
-		Timestamp: time,
+		Timestamp: now,
 	}, nil)
 }
-

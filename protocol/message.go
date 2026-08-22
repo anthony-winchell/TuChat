@@ -23,7 +23,7 @@ type Message struct {
 	RoomTopic     string        `json:"room_topic,omitempty"`
 	RoomUserCount int           `json:"room_user_count,omitempty"`
 
-	Timestamp time.Time `json:"timestamp,omitempty"`
+	Timestamp time.Time `json:"timestamp"`
 }
 
 type RoomSummary struct {
