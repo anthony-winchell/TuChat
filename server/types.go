@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"net"
 	"sync"
@@ -12,8 +13,8 @@ type Client struct {
 
 	user *User
 
-	decoder *json.Decoder
 	encoder *json.Encoder
+	input   *bufio.Scanner
 	writeMu sync.Mutex
 	mu      sync.RWMutex
 

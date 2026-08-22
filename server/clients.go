@@ -1,9 +1,11 @@
 package main
 
 import (
+	"encoding/json"
+	"io"
 	"log"
-	"tuchat/protocol"
 	"strings"
+	"tuchat/protocol"
 )
 
 func (c *Client) Send(msg protocol.Message) error {
@@ -12,6 +14,23 @@ func (c *Client) Send(msg protocol.Message) error {
 	defer c.writeMu.Unlock()
 
 	return c.encoder.Encode(msg)
+}
+
+func (c *Client) readMessage() (protocol.Message, error) {
+	var msg protocol.Message
+
+	if !c.input.Scan() {
+		if err := c.input.Err(); err != nil {
+			return msg, err
+		}
+		return msg, io.EOF
+	}
+
+	if err := json.Unmarshal(c.input.Bytes(), &msg); err != nil {
+		return msg, err
+	}
+
+	return msg, nil
 }
 
 func (c *Client) Close() {

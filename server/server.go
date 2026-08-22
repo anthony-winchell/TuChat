@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
 	"errors"
 	"log"
@@ -13,6 +14,7 @@ import (
 const defaultWelcomeMessage = "Welcome to {server}, {nickname}!\n\nType /help for commands."
 const maxAuthAttempts = 3
 const authTimeout = 2 * time.Minute
+const maxMessageSize = 1 << 20
 
 func (s *Server) Start() {
 	log.Println("Server started")
@@ -64,9 +66,10 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 	var client *Client
 	client = &Client{
 		conn:    conn,
-		decoder: json.NewDecoder(conn),
+		input:   bufio.NewScanner(conn),
 		encoder: json.NewEncoder(conn),
 	}
+	client.input.Buffer(make([]byte, 64*1024), maxMessageSize)
 
 	client.conn.SetReadDeadline(time.Now().Add(authTimeout))
 
@@ -85,9 +88,8 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 
 	attempts := 0
 	for {
-		var message protocol.Message
-
-		if err := client.decoder.Decode(&message); err != nil {
+		message, err := client.readMessage()
+		if err != nil {
 			return nil, err
 		}
 
@@ -224,9 +226,8 @@ func (s *Server) handleMessages(client *Client) {
 	for {
 		client.conn.SetReadDeadline(time.Now().Add(60 * time.Minute))
 
-		var msg protocol.Message
-
-		if err := client.decoder.Decode(&msg); err != nil {
+		msg, err := client.readMessage()
+		if err != nil {
 			if !errors.Is(err, net.ErrClosed) {
 				log.Println(err)
 			}
@@ -261,12 +262,12 @@ func (s *Server) requireServerPassword(client *Client) error {
 
 	attempts := 0
 	for {
-		var message protocol.Message
-		if err := client.decoder.Decode(&message); err != nil {
+		msg, err := client.readMessage()
+		if err != nil {
 			return err
 		}
 
-		if message.Type != "server_password" {
+		if msg.Type != "server_password" {
 			if err := client.Send(protocol.Message{
 				Type:    "error",
 				Message: "Expected server password",
@@ -276,7 +277,7 @@ func (s *Server) requireServerPassword(client *Client) error {
 			continue
 		}
 
-		if s.CheckPassword(message.Password) {
+		if s.CheckPassword(msg.Password) {
 			return nil
 		}
 
