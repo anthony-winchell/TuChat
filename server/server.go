@@ -11,6 +11,8 @@ import (
 )
 
 const defaultWelcomeMessage = "Welcome to {server}, {nickname}!\n\nType /help for commands."
+const maxAuthAttempts = 3
+const authTimeout = 2 * time.Minute
 
 func (s *Server) Start() {
 	log.Println("Server started")
@@ -66,6 +68,8 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 		encoder: json.NewEncoder(conn),
 	}
 
+	client.conn.SetReadDeadline(time.Now().Add(authTimeout))
+
 	if s.HasPassword() {
 		if err := s.requireServerPassword(client); err != nil {
 			return nil, err
@@ -79,6 +83,7 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 		return nil, err
 	}
 
+	attempts := 0
 	for {
 		var message protocol.Message
 
@@ -94,6 +99,14 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 			)
 
 			if err != nil {
+				attempts++
+				if attempts >= maxAuthAttempts {
+					client.Send(protocol.Message{
+						Type:    "error",
+						Message: "Too many failed attempts",
+					})
+					return nil, errors.New("too many auth attempts")
+				}
 				client.Send(protocol.Message{
 					Type:    "error",
 					Message: err.Error(),
@@ -107,6 +120,14 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 			user, err := s.AuthenticateUser(message.Username, message.Password)
 
 			if err != nil {
+				attempts++
+				if attempts >= maxAuthAttempts {
+					client.Send(protocol.Message{
+						Type:    "error",
+						Message: "Too many failed attempts",
+					})
+					return nil, errors.New("too many auth attempts")
+				}
 				client.Send(protocol.Message{
 					Type:    "error",
 					Message: err.Error(),
@@ -238,6 +259,7 @@ func (s *Server) requireServerPassword(client *Client) error {
 		return err
 	}
 
+	attempts := 0
 	for {
 		var message protocol.Message
 		if err := client.decoder.Decode(&message); err != nil {
@@ -256,6 +278,11 @@ func (s *Server) requireServerPassword(client *Client) error {
 
 		if s.CheckPassword(message.Password) {
 			return nil
+		}
+
+		attempts++
+		if attempts >= maxAuthAttempts {
+			return errors.New("too many auth attempts")
 		}
 
 		if err := client.Send(protocol.Message{
