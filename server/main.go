@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"os/signal"
+	"syscall"
 	"time"
 )
 
@@ -59,7 +60,7 @@ func main() {
 
 	signals := make(chan os.Signal, 1)
 
-	signal.Notify(signals, os.Interrupt)
+	signal.Notify(signals, os.Interrupt, syscall.SIGTERM)
 
 	<-signals
 
