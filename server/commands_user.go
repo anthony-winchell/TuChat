@@ -62,7 +62,7 @@ func (s *Server) commandPM(client *Client, args []string) bool {
 		return false
 	}
 
-	time := time.Now()
+	now := time.Now()
 
 	targetNickname := args[0]
 
@@ -86,7 +86,7 @@ func (s *Server) commandPM(client *Client, args []string) bool {
 		Nickname:  client.User().Nickname(),
 		Target:    receiver.User().Nickname(),
 		Message:   message,
-		Timestamp: time,
+		Timestamp: now,
 	}
 
 	if err := receiver.Send(msg); err != nil {
