@@ -26,7 +26,7 @@ func (m Model) renderChat() string {
 	body := lipgloss.JoinHorizontal(
 		lipgloss.Top,
 		chatPane,
-		sidebarStyle.Render(m.renderSidebar()),
+		sidebarStyle.Width(m.ui.layout.sidebarWidth).Render(m.renderSidebar()),
 	)
 
 	return headerStyle.Render(header) +

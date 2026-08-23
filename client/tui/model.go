@@ -63,6 +63,8 @@ type chatState struct {
 type uiState struct {
 	width  int
 	height int
+
+	layout layout
 }
 
 type chatEntry struct {

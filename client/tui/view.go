@@ -5,6 +5,9 @@ import (
 )
 
 func (m Model) View() string {
+	if m.ui.width == 0 || m.ui.height == 0 {
+		return "\n connecting..."
+	}
 	if m.connection.state == connectionDisconnected {
 		return m.renderDisconnected()
 	}

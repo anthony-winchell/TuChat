@@ -31,7 +31,6 @@ var (
 			Padding(0, 1)
 
 	sidebarStyle = lipgloss.NewStyle().
-			Width(24).
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(colorMuted).
 			Padding(0, 1)
