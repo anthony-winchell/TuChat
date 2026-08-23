@@ -56,7 +56,7 @@ func (m Model) renderHeader() string {
 	)
 }
 
-func renderEntries(entries []chatEntry) string {
+func renderEntries(entries []chatEntry, width int) string {
 	var b strings.Builder
 
 	for _, e := range entries {
@@ -76,7 +76,7 @@ func renderEntries(entries []chatEntry) string {
 
 			b.WriteString(ts)
 			b.WriteString(nickname)
-			b.WriteString(e.text)
+			b.WriteString(wrapAnsi(e.text, width, chatIndent))
 			b.WriteString("\n")
 
 		case "pm":
@@ -89,7 +89,7 @@ func renderEntries(entries []chatEntry) string {
 			b.WriteString(ts)
 			b.WriteString(pmStyle.Render(label))
 			b.WriteString(": ")
-			b.WriteString(e.text)
+			b.WriteString(wrapAnsi(e.text, width, tsWidth))
 			b.WriteString("\n")
 
 		case "welcome":
@@ -97,7 +97,7 @@ func renderEntries(entries []chatEntry) string {
 
 		case "system":
 			b.WriteString(ts)
-			b.WriteString(systemStyle.Render(e.text))
+			b.WriteString(systemStyle.Render(wrapAnsi(e.text, width, tsWidth)))
 			b.WriteString("\n")
 
 		case "announcement":
@@ -107,31 +107,31 @@ func renderEntries(entries []chatEntry) string {
 
 		case "room_joined":
 			b.WriteString(ts)
-			b.WriteString(systemStyle.Render("Joined #" + e.text))
+			b.WriteString(systemStyle.Render(wrapAnsi("Joined #"+e.text, width, tsWidth)))
 			b.WriteString("\n")
 
 		case "topic":
 			b.WriteString(ts)
 			b.WriteString(systemStyle.Render(
-				e.nickname + " changed the topic to: " + e.text,
+				wrapAnsi(e.nickname+" changed the topic to: "+e.text, width, tsWidth),
 			))
 			b.WriteString("\n")
 
 		case "error":
-			b.WriteString(errorStyle.Render("Error: " + e.text))
+			b.WriteString(errorStyle.Render(wrapAnsi("Error: "+e.text, width, tsWidth)))
 			b.WriteString("\n")
 
 		case "join":
 			b.WriteString(ts)
 			b.WriteString(joinLeaveStyle.Render(
-				e.nickname + " joined the chat",
+				wrapAnsi(e.nickname+" joined the chat", width, tsWidth),
 			))
 			b.WriteString("\n")
 
 		case "leave":
 			b.WriteString(ts)
 			b.WriteString(joinLeaveStyle.Render(
-				e.nickname + " left the chat",
+				wrapAnsi(e.nickname+" left the chat", width, tsWidth),
 			))
 			b.WriteString("\n")
 		}

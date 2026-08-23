@@ -32,5 +32,5 @@ func (m Model) handleMouse(msg tea.MouseMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) refreshViewport() {
-	m.chat.viewport.SetContent(renderEntries(m.chat.entries))
+	m.chat.viewport.SetContent(renderEntries(m.chat.entries, m.ui.layout.viewportWidth))
 }

@@ -1,10 +1,12 @@
 package tui
 
 import (
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
 	"strings"
 	"tuchat/protocol"
+
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 func (m *Model) handleChatMessage(msg serverMsg) {
@@ -185,7 +187,7 @@ func (m *Model) addChatEntry(entry chatEntry) {
 	wasAtBottom := m.chat.viewport.AtBottom()
 
 	m.chat.entries = append(m.chat.entries, entry)
-	m.chat.viewport.SetContent(renderEntries(m.chat.entries))
+	m.chat.viewport.SetContent(renderEntries(m.chat.entries, m.ui.layout.viewportWidth))
 
 	if wasAtBottom {
 		m.chat.viewport.GotoBottom()
@@ -202,3 +204,21 @@ func renderWelcomeMessage(msg serverMsg) string {
 	).Replace(msg.Message)
 }
 
+const (
+	tsWidth = 8
+	nickCol = 8
+	chatIndent = tsWidth + nickCol
+)
+
+func wrapAnsi(text string, width, indent int) string {
+	if width <= indent {
+		return text
+	}
+
+	wrapped := lipgloss.NewStyle().Width(width - indent).Render(text)
+	if indent == 0 {
+		return wrapped 
+	}
+
+	return strings.ReplaceAll(wrapped, "\n", "\n" + strings.Repeat(" ", indent))
+}
