@@ -38,10 +38,10 @@ func (m *Model) handleChatMessage(msg serverMsg) {
 			timestamp: msg.Timestamp,
 		})
 
-	case "announcement": 
+	case "announcement":
 		m.addChatEntry(chatEntry{
-			kind: "announcement",
-			text: msg.Message,
+			kind:      "announcement",
+			text:      msg.Message,
 			timestamp: msg.Timestamp,
 		})
 
@@ -205,8 +205,8 @@ func renderWelcomeMessage(msg serverMsg) string {
 }
 
 const (
-	tsWidth = 8
-	nickCol = 8
+	tsWidth    = 8
+	nickCol    = 8
 	chatIndent = tsWidth + nickCol
 )
 
@@ -217,8 +217,8 @@ func wrapAnsi(text string, width, indent int) string {
 
 	wrapped := lipgloss.NewStyle().Width(width - indent).Render(text)
 	if indent == 0 {
-		return wrapped 
+		return wrapped
 	}
 
-	return strings.ReplaceAll(wrapped, "\n", "\n" + strings.Repeat(" ", indent))
+	return strings.ReplaceAll(wrapped, "\n", "\n"+strings.Repeat(" ", indent))
 }

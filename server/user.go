@@ -57,7 +57,6 @@ func (u *User) CheckPassword(password string) error {
 	return bcrypt.CompareHashAndPassword([]byte(u.passwordHash), []byte(password))
 }
 
-
 func (s *Server) AddUser(user *User) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()

@@ -1,11 +1,10 @@
 package tui
 
 import (
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 	"tuchat/protocol"
 )
-
 
 func (m Model) switchSidebar() (tea.Model, tea.Cmd) {
 	m.chat.activeSidebar =

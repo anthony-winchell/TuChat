@@ -2,8 +2,8 @@ package tui
 
 import (
 	"encoding/json"
-	"net"
 	"github.com/charmbracelet/bubbletea"
+	"net"
 	"tuchat/protocol"
 )
 

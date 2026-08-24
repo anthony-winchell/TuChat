@@ -107,7 +107,6 @@ func (m Model) handleJoinedRoom() (tea.Model, tea.Cmd) {
 	return m, listenCmd(m.connection.dec)
 }
 
-
 func (m *Model) handleServerName(msg serverMsg) (tea.Model, tea.Cmd) {
 	m.serverName = msg.Message
 

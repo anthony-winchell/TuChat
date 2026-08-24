@@ -24,8 +24,8 @@ func computeLayout(width, height int) layout {
 	)
 
 	return layout{
-		sidebarWidth: sidebar,
-		viewportWidth: width - sidebar - sidebarBorder - viewportFrameX, 
+		sidebarWidth:   sidebar,
+		viewportWidth:  width - sidebar - sidebarBorder - viewportFrameX,
 		viewportHeight: height - chromeRows - pillReserve,
 	}
 }

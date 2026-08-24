@@ -3,8 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
-	"time"
 	"strings"
+	"time"
 	"tuchat/protocol"
 )
 
@@ -37,12 +37,12 @@ func (s *Server) commandServerRename(client *Client, name string) bool {
 	}
 
 	s.sendToAll(protocol.Message{
-		Type: "system",
+		Type:    "system",
 		Message: client.User().Nickname() + " renamed the server to " + name,
 	}, nil)
 
 	s.sendToAll(protocol.Message{
-		Type: "server_name",
+		Type:    "server_name",
 		Message: s.Name(),
 	}, nil)
 

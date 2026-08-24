@@ -1,4 +1,4 @@
-package main 
+package main
 
 import (
 	"testing"
@@ -110,8 +110,6 @@ func TestSetUserPassword(t *testing.T) {
 	if err := user.CheckPassword("password"); err == nil {
 		t.Fatal("expected password to be invalid")
 	}
-
-
 
 }
 
