@@ -194,16 +194,14 @@ func (m Model) handleRoomPasswordKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m *Model) cancelRoomPassword() tea.Cmd {
-	m.chat.awaitingRoomPassword = ""
-	m.chat.secret.Reset()
-	m.chat.secret.Blur()
+	resetCmd := m.resetChatInput()
 
 	m.addChatEntry(chatEntry{
 		kind: "system",
 		text: "Cancelled join.",
 	})
 
-	return m.chat.input.Focus()
+	return resetCmd
 }
 
 func (m *Model) resetChatInput() tea.Cmd {

@@ -49,19 +49,7 @@ func (m Model) handleServerMessage(msg serverMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleJoinPasswordRequired(msg serverMsg) (tea.Model, tea.Cmd) {
-	m.chat.awaitingRoomPassword = msg.Message
-
-	m.chat.secret.Reset()
-	m.chat.secret.Placeholder = "room password"
-
-	m.chat.input.Blur()
-	blinkCmd := m.chat.secret.Focus()
-
-	m.chat.entries = append(m.chat.entries, chatEntry{
-		kind: "system",
-		text: "#" + msg.Message + " requires a password. Enter it or press Esc to cancel.",
-	})
-	m.refreshViewport()
+	blinkCmd := m.beginRoomPassword(msg.Message)
 
 	return m, tea.Batch(listenCmd(m.connection.dec), blinkCmd)
 }
