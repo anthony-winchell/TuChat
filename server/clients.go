@@ -1,19 +1,73 @@
 package main
 
 import (
+	"bufio"
 	"encoding/json"
+	"errors"
 	"io"
-	"log"
+	"net"
 	"strings"
+	"sync"
+	"time"
 	"tuchat/protocol"
 )
 
+const outboxSize = 64
+const writeTimeout = 10 * time.Second
+
+func newClient(conn net.Conn) *Client {
+	c := &Client{
+		conn:    conn,
+		input:   bufio.NewScanner(conn),
+		encoder: json.NewEncoder(conn),
+		outbox:  make(chan protocol.Message, outboxSize),
+		done:    make(chan struct{}),
+	}
+
+	c.input.Buffer(make([]byte, 64*1024), maxMessageSize)
+	return c
+}
+
+func (c *Client) startWriter(wg *sync.WaitGroup) {
+	wg.Go(func() {
+		for {
+			select {
+			case <-c.done:
+				return
+			case msg := <-c.outbox:
+				c.conn.SetWriteDeadline(time.Now().Add(writeTimeout))
+
+				if err := c.encoder.Encode(msg); err != nil {
+					c.stop()
+					return
+				}
+			}
+		}
+	})
+}
+
+func (c *Client) stop() {
+	c.stopOnce.Do(func() {
+		close(c.done)
+		c.conn.Close()
+	})
+}
+
 func (c *Client) Send(msg protocol.Message) error {
+	select {
+	case <-c.done:
+		return errors.New("connection closed")
 
-	c.writeMu.Lock()
-	defer c.writeMu.Unlock()
+	default:
+	}
+	select {
+	case c.outbox <- msg:
+		return nil
 
-	return c.encoder.Encode(msg)
+	default:
+		go c.stop()
+		return errors.New("outbox full; client evicted")
+	}
 }
 
 func (c *Client) readMessage() (protocol.Message, error) {
@@ -31,14 +85,6 @@ func (c *Client) readMessage() (protocol.Message, error) {
 	}
 
 	return msg, nil
-}
-
-func (c *Client) Close() {
-	c.writeMu.Lock()
-	defer c.writeMu.Unlock()
-	if err := c.conn.Close(); err != nil {
-		log.Println(err)
-	}
 }
 
 func (c *Client) Room() *Room {

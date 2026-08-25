@@ -6,6 +6,7 @@ import (
 	"net"
 	"sync"
 	"time"
+	"tuchat/protocol"
 )
 
 type Client struct {
@@ -15,8 +16,11 @@ type Client struct {
 
 	encoder *json.Encoder
 	input   *bufio.Scanner
-	writeMu sync.Mutex
 	mu      sync.RWMutex
+
+	outbox   chan protocol.Message
+	done     chan struct{}
+	stopOnce sync.Once
 
 	room *Room
 }

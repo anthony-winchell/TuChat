@@ -1,8 +1,6 @@
 package main
 
 import (
-	"bufio"
-	"encoding/json"
 	"errors"
 	"log"
 	"net"
@@ -64,12 +62,7 @@ func (s *Server) addConnection(conn net.Conn) {
 
 func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 	var client *Client
-	client = &Client{
-		conn:    conn,
-		input:   bufio.NewScanner(conn),
-		encoder: json.NewEncoder(conn),
-	}
-	client.input.Buffer(make([]byte, 64*1024), maxMessageSize)
+	client = newClient(conn)
 
 	client.conn.SetReadDeadline(time.Now().Add(authTimeout))
 
@@ -170,6 +163,8 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 		return nil, err
 	}
 
+	client.startWriter(&s.wg)
+
 	return client, nil
 }
 
@@ -181,9 +176,13 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	client, err := s.registerClient(conn)
 	if err != nil {
+		if client != nil {
+			client.stop()
+		}
 		log.Println(err)
 		return
 	}
+	defer client.stop()
 
 	s.sendWelcome(client)
 

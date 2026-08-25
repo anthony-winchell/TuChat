@@ -1,6 +1,7 @@
 package main
 
 import (
+	"net"
 	"strings"
 	"testing"
 )
@@ -616,15 +617,22 @@ func TestRoomOwnerRemainsAdmin(t *testing.T) {
 }
 
 func newTestClient(t *testing.T, username string) *Client {
-
 	t.Helper()
-
 	user, err := NewUser(username, "password")
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	return &Client{
-		user: user,
-	}
+	serverConn, clientConn := net.Pipe()
+	c := newClient(serverConn)
+	go func() {
+		buf := make([]byte, 4096)
+		for {
+			if _, err := clientConn.Read(buf); err != nil {
+				return
+			}
+		}
+	}()
+	c.user = user
+	return c
 }
