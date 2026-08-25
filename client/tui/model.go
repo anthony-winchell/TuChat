@@ -111,6 +111,8 @@ const (
 	connectionDisconnected
 )
 
+const maxInputRows = 5
+
 type screen int
 
 const (
@@ -192,9 +194,10 @@ func newChatInput() textarea.Model {
 	ta.Placeholder = "message or /command"
 	ta.Prompt = ""
 	ta.ShowLineNumbers = false
-	ta.SetHeight(3)
+	ta.SetHeight(1)
+	ta.CharLimit = 2000
 
-	ta.KeyMap.InsertNewline.SetEnabled(false)
+	ta.KeyMap.InsertNewline.SetKeys("alt+enter")
 
 	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
 

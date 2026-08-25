@@ -4,6 +4,7 @@ import (
 	"strings"
 	"tuchat/protocol"
 
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -87,13 +88,16 @@ func (m Model) handleChatInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if msg.String() != "enter" {
 		var cmd tea.Cmd
 
+		m.growForNewline(msg)
 		m.chat.input, cmd = m.chat.input.Update(msg)
+		m.syncInputHeight()
 
 		return m, cmd
 	}
 
 	value := strings.TrimSpace(m.chat.input.Value())
 	m.chat.input.Reset()
+	m.syncInputHeight()
 
 	if value == "" {
 		return m, nil
@@ -128,6 +132,33 @@ func (m Model) handleChatInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 func (m Model) currentInputRows() int {
 	return m.chat.input.Height()
+}
+
+func (m *Model) growForNewline(msg tea.KeyMsg) {
+	if !key.Matches(msg, m.chat.input.KeyMap.InsertNewline) {
+		return
+	}
+
+	rows := min(strings.Count(m.chat.input.Value(), "\n")+2, maxInputRows)
+	if rows > m.chat.input.Height() {
+		m.chat.input.SetHeight(rows)
+		m.resizePanes(m.ui.width, m.ui.height, rows)
+	}
+}
+
+func (m *Model) syncInputHeight() {
+	rows := strings.Count(m.chat.input.Value(), "\n") + 1
+	if rows > maxInputRows {
+		rows = maxInputRows
+	}
+
+	if rows == m.chat.input.Height() {
+		return
+	}
+
+	m.chat.input.SetHeight(rows)
+
+	m.resizePanes(m.ui.width, m.ui.height, rows)
 }
 
 func (m Model) handleRoomPasswordKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -181,7 +212,7 @@ func (m *Model) resetChatInput() tea.Cmd {
 	m.chat.awaitingRoomPassword = ""
 	m.chat.secret.Blur()
 
-	m.resizePanes(m.ui.width, m.ui.height, m.currentInputRows())
+	m.syncInputHeight()
 
 	return m.chat.input.Focus()
 }
