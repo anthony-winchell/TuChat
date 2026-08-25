@@ -1,7 +1,6 @@
 package tui
 
 import (
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -52,9 +51,11 @@ func (m Model) handleServerMessage(msg serverMsg) (tea.Model, tea.Cmd) {
 func (m Model) handleJoinPasswordRequired(msg serverMsg) (tea.Model, tea.Cmd) {
 	m.chat.awaitingRoomPassword = msg.Message
 
-	m.chat.input.EchoMode = textinput.EchoPassword
-	m.chat.input.Placeholder = "room password"
-	m.chat.input.Prompt = "🔒 "
+	m.chat.secret.Reset()
+	m.chat.secret.Placeholder = "room password"
+
+	m.chat.input.Blur()
+	blinkCmd := m.chat.secret.Focus()
 
 	m.chat.entries = append(m.chat.entries, chatEntry{
 		kind: "system",
@@ -62,7 +63,7 @@ func (m Model) handleJoinPasswordRequired(msg serverMsg) (tea.Model, tea.Cmd) {
 	})
 	m.refreshViewport()
 
-	return m, m.chat.input.Focus()
+	return m, tea.Batch(listenCmd(m.connection.dec), blinkCmd)
 }
 
 func (m Model) handleServerError(msg serverMsg) (tea.Model, tea.Cmd) {

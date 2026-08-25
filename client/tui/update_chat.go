@@ -4,7 +4,6 @@ import (
 	"strings"
 	"tuchat/protocol"
 
-	"github.com/charmbracelet/bubbles/textinput"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -127,21 +126,24 @@ func (m Model) handleChatInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	)
 }
 
+func (m Model) currentInputRows() int {
+	return m.chat.input.Height()
+}
+
 func (m Model) handleRoomPasswordKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if msg.String() == "esc" {
-		m.cancelRoomPassword()
-		return m, nil
+		return m, m.cancelRoomPassword()
 	}
 
 	if msg.String() != "enter" {
 		var cmd tea.Cmd
 
-		m.chat.input, cmd = m.chat.input.Update(msg)
+		m.chat.secret, cmd = m.chat.secret.Update(msg)
 
 		return m, cmd
 	}
 
-	password := strings.TrimSpace(m.chat.input.Value())
+	password := strings.TrimSpace(m.chat.secret.Value())
 
 	if password == "" {
 		return m, nil
@@ -149,32 +151,39 @@ func (m Model) handleRoomPasswordKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	room := m.chat.awaitingRoomPassword
 
-	m.resetChatInput()
+	resetCmd := m.resetChatInput()
 
-	return m, sendCmd(
+	return m, tea.Batch(sendCmd(
 		m.connection.enc,
 		protocol.Message{
 			Type:    "command",
 			Message: "/join " + room + " " + password,
 		},
-	)
+	), resetCmd)
 }
 
-func (m *Model) cancelRoomPassword() {
+func (m *Model) cancelRoomPassword() tea.Cmd {
 	m.chat.awaitingRoomPassword = ""
-	m.resetChatInput()
+	m.chat.secret.Reset()
+	m.chat.secret.Blur()
 
 	m.addChatEntry(chatEntry{
 		kind: "system",
 		text: "Cancelled join.",
 	})
+
+	return m.chat.input.Focus()
 }
 
-func (m *Model) resetChatInput() {
+func (m *Model) resetChatInput() tea.Cmd {
 	m.chat.input.Reset()
-	m.chat.input.EchoMode = textinput.EchoNormal
-	m.chat.input.Placeholder = "message or /command"
-	m.chat.input.Prompt = "> "
+	m.chat.secret.Reset()
+	m.chat.awaitingRoomPassword = ""
+	m.chat.secret.Blur()
+
+	m.resizePanes(m.ui.width, m.ui.height, m.currentInputRows())
+
+	return m.chat.input.Focus()
 }
 
 func (m Model) handleNickSuccess(msg serverMsg) (tea.Model, tea.Cmd) {

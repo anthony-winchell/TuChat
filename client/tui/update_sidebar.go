@@ -1,9 +1,9 @@
 package tui
 
 import (
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
 	"tuchat/protocol"
+
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func (m Model) switchSidebar() (tea.Model, tea.Cmd) {
@@ -61,8 +61,7 @@ func (m Model) joinSelectedRoom() (tea.Model, tea.Cmd) {
 	}
 
 	if room.HasPassword {
-		m.beginRoomPassword(room.Name)
-		return m, nil
+		return m, m.beginRoomPassword(room.Name)
 	}
 
 	return m, sendCmd(
@@ -74,16 +73,18 @@ func (m Model) joinSelectedRoom() (tea.Model, tea.Cmd) {
 	)
 }
 
-func (m *Model) beginRoomPassword(roomName string) {
+func (m *Model) beginRoomPassword(roomName string) tea.Cmd {
 	m.chat.awaitingRoomPassword = roomName
 
-	m.chat.input.EchoMode = textinput.EchoPassword
-	m.chat.input.Placeholder = "room password"
-	m.chat.input.Prompt = "🔒 "
+	m.chat.secret.Reset()
+	m.chat.secret.Placeholder = "room password"
+	m.chat.input.Blur()
 
 	m.addChatEntry(chatEntry{
 		kind: "system",
 		text: "#" + roomName +
 			" requires a password. Enter it or press Esc to cancel.",
 	})
+
+	return m.chat.secret.Focus()
 }

@@ -46,8 +46,9 @@ var (
 				PaddingLeft(1)
 
 	inputStyle = lipgloss.NewStyle().
-			Border(lipgloss.NormalBorder()).
-			Padding(0, 1)
+			Border(lipgloss.RoundedBorder()).
+			Padding(0, 1).
+			BorderForeground(colorAccent)
 
 	errorStyle = lipgloss.NewStyle().
 			Foreground(colorError).

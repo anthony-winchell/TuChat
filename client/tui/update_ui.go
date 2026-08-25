@@ -7,14 +7,14 @@ import (
 func (m Model) handleWindowSize(msg tea.WindowSizeMsg) (tea.Model, tea.Cmd) {
 	m.ui.width = msg.Width
 	m.ui.height = msg.Height
-	m.ui.layout = computeLayout(msg.Width, msg.Height)
 
 	m.auth.menu.SetSize(msg.Width-4, msg.Height-6)
 
-	m.chat.viewport.Width = m.ui.layout.viewportWidth
-	m.chat.viewport.Height = m.ui.layout.viewportHeight
-
-	m.refreshViewport()
+	m.resizePanes(
+		msg.Width,
+		msg.Height,
+		m.currentInputRows(),
+	)
 
 	return m, nil
 }

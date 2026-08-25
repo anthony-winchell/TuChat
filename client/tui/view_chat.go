@@ -29,11 +29,17 @@ func (m Model) renderChat() string {
 		sidebarStyle.Width(m.ui.layout.sidebarWidth).Render(m.renderSidebar()),
 	)
 
+	inputView := m.chat.input.View()
+
+	if m.chat.awaitingRoomPassword != "" {
+		inputView = m.chat.secret.View()
+	}
+
 	return headerStyle.Render(header) +
 		"\n\n" +
 		body +
 		"\n\n" +
-		inputStyle.Render(m.chat.input.View())
+		inputStyle.Render(inputView)
 }
 
 func (m Model) renderHeader() string {

@@ -27,9 +27,31 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case tea.KeyMsg:
 		return m.handleKey(msg)
+
+	default:
+		return m.forwardToActiveWidget(msg)
+	}
+}
+
+func (m Model) forwardToActiveWidget(msg tea.Msg) (tea.Model, tea.Cmd) {
+	var cmd tea.Cmd
+
+	switch {
+	case m.screen == screenAuth:
+		if m.auth.stage == stageMenu {
+			m.auth.menu, cmd = m.auth.menu.Update(msg)
+			return m, cmd
+		}
+		m.auth.input, cmd = m.auth.input.Update(msg)
+
+	case m.chat.awaitingRoomPassword != "":
+		m.chat.secret, cmd = m.chat.secret.Update(msg)
+
+	default:
+		m.chat.input, cmd = m.chat.input.Update(msg)
 	}
 
-	return m, nil
+	return m, cmd
 }
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

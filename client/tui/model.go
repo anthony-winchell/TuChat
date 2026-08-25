@@ -7,9 +7,11 @@ import (
 	"tuchat/protocol"
 
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/textarea"
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 )
 
 type Model struct {
@@ -45,7 +47,8 @@ type chatState struct {
 	entries     []chatEntry
 	newMessages int
 
-	input textinput.Model
+	input  textarea.Model
+	secret textinput.Model
 
 	users []protocol.UserSummary
 	rooms []protocol.RoomSummary
@@ -124,6 +127,7 @@ func New() Model {
 	authMenu := newAuthMenu()
 	chatViewport := newChatViewport()
 	chatInput := newChatInput()
+	passwordInput := newPasswordInput()
 
 	return Model{
 		screen: screenAuth,
@@ -141,6 +145,7 @@ func New() Model {
 		chat: chatState{
 			viewport: chatViewport,
 			input:    chatInput,
+			secret:   passwordInput,
 		},
 	}
 }
@@ -181,13 +186,25 @@ func newChatViewport() viewport.Model {
 	return vp
 }
 
-func newChatInput() textinput.Model {
+func newChatInput() textarea.Model {
+	ta := textarea.New()
+
+	ta.Placeholder = "message or /command"
+	ta.Prompt = ""
+	ta.ShowLineNumbers = false
+	ta.SetHeight(3)
+
+	ta.KeyMap.InsertNewline.SetEnabled(false)
+
+	ta.FocusedStyle.CursorLine = lipgloss.NewStyle()
+
+	return ta
+}
+
+func newPasswordInput() textinput.Model {
 	ti := textinput.New()
-
-	ti.Placeholder = "message or /command"
-	ti.EchoMode = textinput.EchoNormal
-	ti.Prompt = "> "
-	ti.Focus()
-
+	ti.Placeholder = "password"
+	ti.Prompt = "🔒 "
+	ti.EchoMode = textinput.EchoPassword
 	return ti
 }

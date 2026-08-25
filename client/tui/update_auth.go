@@ -42,9 +42,8 @@ func (m Model) handleAuthMenuKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		m.auth.input.Reset()
 		m.auth.input.EchoMode = textinput.EchoNormal
 		m.auth.input.Placeholder = "username"
-		m.auth.input.Focus()
 
-		return m, nil
+		return m, m.auth.input.Focus()
 	}
 
 	var cmd tea.Cmd
@@ -127,13 +126,18 @@ func (m Model) handleAuthSuccess(msg serverMsg) (tea.Model, tea.Cmd) {
 	m.auth.input.Reset()
 	m.auth.input.Blur()
 
-	return m, tea.Batch(listenCmd(m.connection.dec), sendCmd(m.connection.enc, protocol.Message{
-		Type:    "command",
-		Message: "/users",
-	}), sendCmd(m.connection.enc, protocol.Message{
-		Type:    "command",
-		Message: "/room",
-	}))
+	return m, tea.Batch(
+		listenCmd(m.connection.dec),
+		sendCmd(m.connection.enc, protocol.Message{
+			Type:    "command",
+			Message: "/users",
+		}),
+		sendCmd(m.connection.enc, protocol.Message{
+			Type:    "command",
+			Message: "/room",
+		}),
+		m.chat.input.Focus(),
+	)
 }
 
 func (m Model) handleAuthError(msg serverMsg) (tea.Model, tea.Cmd) {
