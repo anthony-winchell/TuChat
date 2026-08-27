@@ -107,13 +107,10 @@ func renderEntries(entries []chatEntry, width int) string {
 			b.WriteString("\n")
 
 		case "announcement":
-			b.WriteString(ts)
-			b.WriteString(announcementStyle.Render(authTitleStyle.Render("ANNOUNCEMENT") + "\n\n\n" + e.text))
-			b.WriteString("\n")
-
-		case "room_joined":
-			b.WriteString(ts)
-			b.WriteString(systemStyle.Render(wrapAnsi("Joined #"+e.text, width, tsWidth)))
+			boxed := announcementStyle.Width(width - 2).Render(
+				authTitleStyle.Render("ANNOUNCEMENT") + "\n\n\n" + e.text,		
+				)
+			b.WriteString(boxed)
 			b.WriteString("\n")
 
 		case "topic":
