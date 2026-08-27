@@ -6,6 +6,7 @@ import (
 	"sort"
 	"strings"
 	"time"
+
 	"tuchat/protocol"
 
 	"golang.org/x/crypto/bcrypt"
@@ -168,7 +169,6 @@ func (s *Server) broadcastRoomList() {
 }
 
 func (r *Room) Remove(client *Client) {
-
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -214,7 +214,6 @@ func (r *Room) FindByNickname(nickname string) *Client {
 	}
 
 	return nil
-
 }
 
 func (r *Room) Broadcast(msg protocol.Message, sender *Client) {
@@ -251,11 +250,7 @@ func (r *Room) IsAdmin(username string) bool {
 
 	_, ok := r.admins[username]
 
-	if ok {
-		return true
-	}
-
-	return false
+	return ok
 }
 
 func (r *Room) IsOwner(username string) bool {
@@ -325,7 +320,6 @@ func (r *Room) SetOwner(username string) {
 }
 
 func (r *Room) RequireAdmin(client *Client) error {
-
 	if r.Name() == "general" {
 		return errors.New("general is the default room and cannot be modified")
 	}
@@ -551,25 +545,21 @@ func (s *Server) DeleteRoom(r *Room) error {
 
 	general := s.rooms["general"]
 	chatLog, hasChatLog := s.chatLogs[name]
+
+	delete(s.chatLogs, name)
+	delete(s.rooms, name)
+
+	members := s.roomSnapshot(r)
+
 	s.mu.Unlock()
 
 	if hasChatLog {
-		err := chatLog.Delete()
-
-		s.mu.Lock()
-		delete(s.chatLogs, name)
-		s.mu.Unlock()
-
-		if err != nil {
-			return err
+		if err := chatLog.Delete(); err != nil {
+			log.Println(err)
 		}
 	}
 
-	s.mu.Lock()
-	delete(s.rooms, name)
-	s.mu.Unlock()
-
-	for _, client := range s.roomSnapshot(r) {
+	for _, client := range members {
 		if err := client.Send(protocol.Message{
 			Type:    "system",
 			Message: "#" + name + " has been deleted. Moving to #general",

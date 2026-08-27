@@ -108,8 +108,8 @@ func renderEntries(entries []chatEntry, width int) string {
 
 		case "announcement":
 			boxed := announcementStyle.Width(width - 2).Render(
-				authTitleStyle.Render("ANNOUNCEMENT") + "\n\n\n" + e.text,		
-				)
+				authTitleStyle.Render("ANNOUNCEMENT") + "\n\n\n" + e.text,
+			)
 			b.WriteString(boxed)
 			b.WriteString("\n")
 

@@ -1,6 +1,5 @@
-//Package tui is responsible for rendering the user interface
+// Package tui is responsible for rendering the user interface
 package tui
-
 
 import (
 	"encoding/json"
