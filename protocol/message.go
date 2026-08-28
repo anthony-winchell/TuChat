@@ -5,7 +5,8 @@ import "time"
 type Message struct {
 	Type string `json:"type"`
 
-	ServerName string `json:"server_name,omitempty"`
+	ServerName    string `json:"server_name,omitempty"`
+	ServerAddress string `json:"server_address,omitempty"`
 
 	Username string `json:"username,omitempty"`
 	Nickname string `json:"nickname,omitempty"`

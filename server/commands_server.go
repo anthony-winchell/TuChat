@@ -13,6 +13,7 @@ func (s *Server) commandServerInfo(client *Client) bool {
 	sendSystem(client, "Uptime: "+time.Since(s.startTime).Round(time.Second).String())
 	sendSystem(client, fmt.Sprintf("Rooms: %d", len(s.RoomsSnapshot())))
 	sendSystem(client, fmt.Sprintf("Users: %d", len(s.clientsSnapshot())))
+	sendSystem(client, "Server Address: "+s.AdvertiseAddr())
 
 	return false
 }

@@ -176,10 +176,11 @@ func (s *Server) sendWelcome(client *Client) {
 
 	if err := client.Send(
 		protocol.Message{
-			Type:       "welcome",
-			Message:    template,
-			Nickname:   client.User().Nickname(),
-			ServerName: s.Name(),
+			Type:          "welcome",
+			Message:       template,
+			Nickname:      client.User().Nickname(),
+			ServerName:    s.Name(),
+			ServerAddress: s.AdvertiseAddr(),
 		},
 	); err != nil {
 		log.Println(err)

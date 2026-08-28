@@ -9,7 +9,8 @@ import (
 	"tuchat/protocol"
 )
 
-const defaultWelcomeMessage = "Welcome to {server}, {nickname}!\n\nType /help for commands."
+const defaultWelcomeMessage = "Welcome to {server}, {nickname}!\n\nType /help for commands.\n\n" +
+	"Server Address: {address}"
 const maxAuthAttempts = 3
 const authTimeout = 2 * time.Minute
 const maxMessageSize = 1 << 20

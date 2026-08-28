@@ -239,6 +239,7 @@ func renderWelcomeMessage(msg serverMsg) string {
 	return strings.NewReplacer(
 		"{server}", msg.ServerName,
 		"{nickname}", msg.Nickname,
+		"{address}", msg.ServerAddress,
 	).Replace(msg.Message)
 }
 

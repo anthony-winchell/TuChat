@@ -3,11 +3,12 @@ package tui
 import "github.com/charmbracelet/lipgloss"
 
 var (
-	colorAccent   = lipgloss.Color("#7C3AED")
-	colorMuted    = lipgloss.Color("#6B7280")
-	colorError    = lipgloss.Color("#EF4444")
-	colorNickname = lipgloss.Color("#22D3EE")
-	colorPM       = lipgloss.Color("#F472B6")
+	colorAccent       = lipgloss.Color("#4078c0")
+	colorMuted        = lipgloss.Color("#546377")
+	colorError        = lipgloss.Color("#EF4444")
+	colorAnnouncement = lipgloss.Color("#EAB308")
+	colorNickname     = lipgloss.Color("#6e5494")
+	colorPM           = lipgloss.Color("#72f478")
 
 	timestampStyle      = lipgloss.NewStyle().Foreground(colorMuted)
 	nicknameStyle       = lipgloss.NewStyle().Bold(true).Foreground(colorNickname)
@@ -72,5 +73,9 @@ var (
 				Bold(true).
 				Border(lipgloss.DoubleBorder()).
 				Padding(3, 5).
-				BorderForeground(colorAccent)
+				BorderForeground(colorAnnouncement)
+
+	announcementTitleStyle = lipgloss.NewStyle().
+				Bold(true).
+				Foreground(colorAnnouncement)
 )

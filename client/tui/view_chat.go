@@ -47,6 +47,9 @@ func (m Model) renderHeader() string {
 	if m.chat.roomTopic != "" {
 		title += " - " + m.chat.roomTopic
 	}
+	if m.connection.addr != "" {
+		title += " (" + m.connection.addr + ")"
+	}
 
 	status := fmt.Sprintf("Users: %d", len(m.chat.users))
 
@@ -108,7 +111,7 @@ func renderEntries(entries []chatEntry, width int) string {
 
 		case "announcement":
 			boxed := announcementStyle.Width(width - 2).Render(
-				authTitleStyle.Render("ANNOUNCEMENT") + "\n\n\n" + e.text,
+				announcementTitleStyle.Render("ANNOUNCEMENT") + "\n\n\n" + e.text,
 			)
 			b.WriteString(boxed)
 			b.WriteString("\n")
