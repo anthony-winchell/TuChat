@@ -511,7 +511,7 @@ func (s *Server) RenameRoom(r *Room, newName string) error {
 	chatLog, exists := s.chatLogs[oldName]
 
 	if exists {
-		if err := chatLog.Rename("logs/" + newName + ".log"); err != nil {
+		if err := chatLog.Rename(logsDir + "/" + newName + ".log"); err != nil {
 			return err
 		}
 

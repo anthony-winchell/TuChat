@@ -8,6 +8,8 @@ import (
 	"time"
 )
 
+const logsDir = "logs"
+
 type LogEntry struct {
 	Username  string    `json:"username"`
 	Nickname  string    `json:"nickname"`
@@ -26,12 +28,12 @@ func NewChatLog(roomName string) (*ChatLog, error) {
 		return nil, err
 	}
 
-	path := "logs/" + roomName + ".log"
+	path := logsDir + "/" + roomName + ".log"
 
 	file, err := os.OpenFile(
 		path,
 		os.O_CREATE|os.O_APPEND|os.O_RDWR,
-		0644,
+		0600,
 	)
 	if err != nil {
 		return nil, err
@@ -169,7 +171,7 @@ func (l *ChatLog) Rename(newPath string) error {
 	file, err := os.OpenFile(
 		newPath,
 		os.O_CREATE|os.O_APPEND|os.O_RDWR,
-		0644,
+		0600,
 	)
 	if err != nil {
 		return err

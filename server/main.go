@@ -2,6 +2,7 @@ package main
 
 import (
 	"errors"
+	"flag"
 	"log"
 	"net"
 	"os"
@@ -10,15 +11,25 @@ import (
 	"time"
 )
 
-var ErrUsernameTaken = errors.New("Username already taken")
-var ErrUsernameFormat = errors.New(`Username cannot contain ':'. Must be between 3 and 13 characters long`)
-var ErrUserNotFound = errors.New("User not found")
+var (
+	addr  = flag.String("addr", ":8080", "listen address")
+	name  = flag.String("name", "", "server name (default: TuChat)")
+	owner = flag.String("owner", "", "server owner username")
+)
+
+var (
+	ErrUsernameTaken  = errors.New("Username already taken")
+	ErrUsernameFormat = errors.New(`Username cannot contain ':'. Must be between 3 and 13 characters long`)
+	ErrUserNotFound   = errors.New("User not found")
+)
 
 func main() {
-	listener, err := net.Listen("tcp", ":8080")
+	flag.Parse()
+
+	listener, err := net.Listen("tcp", *addr)
 	if err != nil {
 		log.Println(err)
-		return
+		return 
 	}
 
 	server := &Server{
@@ -37,8 +48,18 @@ func main() {
 	if err := server.loadConfig(); err != nil {
 		log.Println("No config found. Creating defaults...")
 		createDefaultState(server)
-		server.configureName()
-		server.configureOwner()
+
+		if *name != "" {
+			server.SetName(*name)
+		} else {
+			server.configureName()
+		}
+
+		if *owner != "" {
+			server.SetOwner(*owner)
+		} else {
+			server.configureOwner()
+		}
 
 		if err := server.SaveConfig(); err != nil {
 			log.Println(err)
@@ -67,7 +88,6 @@ func main() {
 	server.SaveConfig()
 
 	server.Shutdown()
-
 }
 
 func createDefaultState(server *Server) {
