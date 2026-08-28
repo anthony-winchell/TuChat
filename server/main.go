@@ -12,9 +12,10 @@ import (
 )
 
 var (
-	addr  = flag.String("addr", ":8080", "listen address")
-	name  = flag.String("name", "", "server name (default: TuChat)")
-	owner = flag.String("owner", "", "server owner username")
+	addr      = flag.String("addr", ":8080", "listen address")
+	advertise = flag.String("advertise", "", "address clients should dial to reach this server")
+	name      = flag.String("name", "", "server name (default: TuChat)")
+	owner     = flag.String("owner", "", "server owner username")
 )
 
 var (
@@ -29,7 +30,7 @@ func main() {
 	listener, err := net.Listen("tcp", *addr)
 	if err != nil {
 		log.Println(err)
-		return 
+		return
 	}
 
 	server := &Server{
@@ -42,6 +43,12 @@ func main() {
 		rooms:     make(map[string]*Room),
 		startTime: time.Now(),
 	}
+
+	advertised := *advertise
+	if advertised == "" {
+		advertised = *addr
+	}
+	server.SetAdvertiseAddr(advertised)
 
 	server.InitializeCommands()
 

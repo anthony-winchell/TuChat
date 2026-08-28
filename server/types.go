@@ -50,7 +50,8 @@ type Server struct {
 	saveMu   sync.Mutex
 	listener net.Listener
 
-	name string
+	name      string
+	advertise string
 
 	welcomeMessage string
 

@@ -28,6 +28,7 @@ type Model struct {
 }
 
 type connection struct {
+	addr  string
 	conn  net.Conn
 	dec   *json.Decoder
 	enc   *json.Encoder
@@ -122,10 +123,10 @@ const (
 )
 
 func (m Model) Init() tea.Cmd {
-	return connectCmd()
+	return connectCmd(m.connection.addr)
 }
 
-func New() Model {
+func New(addr string) Model {
 	authInput := newAuthInput()
 	authMenu := newAuthMenu()
 	chatViewport := newChatViewport()
@@ -136,6 +137,7 @@ func New() Model {
 		screen: screenAuth,
 
 		connection: connection{
+			addr:  addr,
 			state: connectionConnecting,
 		},
 

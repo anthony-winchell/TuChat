@@ -3,23 +3,15 @@ package tui
 import (
 	"encoding/json"
 	"net"
-	"os"
 
 	"tuchat/protocol"
 
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func serverAddress() string {
-	if addr := os.Getenv("TUCHAT_ADDR"); addr != "" {
-		return addr
-	}
-	return "localhost:8080"
-}
-
-func connectCmd() tea.Cmd {
+func connectCmd(addr string) tea.Cmd {
 	return func() tea.Msg {
-		conn, err := net.Dial("tcp", serverAddress())
+		conn, err := net.Dial("tcp", addr)
 		if err != nil {
 			return connErrMsg{err: err}
 		}

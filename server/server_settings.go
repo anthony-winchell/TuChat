@@ -12,6 +12,18 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
+func (s *Server) AdvertiseAddr() string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.advertise
+}
+
+func (s *Server) SetAdvertiseAddr(addr string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.advertise = addr
+}
+
 func (s *Server) Name() string {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
