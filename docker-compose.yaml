@@ -1,0 +1,14 @@
+services:
+  tuchat:
+    build: .
+    image: tuchat:latest
+    ports: ["8080:8080"]
+    environment:
+      TUCHAT_ADDR: ":8080"
+      TUCHAT_ADVERTISE: "server.mytailnet.ts.net:8080"
+      TUCHAT_NAME: "TuChat"
+      TUCHAT_OWNER: "admin"
+    volumes: ["tuchat-data:/app"]
+    restart: unless-stopped
+volumes:
+  tuchat-data:

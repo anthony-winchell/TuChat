@@ -12,7 +12,7 @@ import (
 )
 
 var (
-	addr      = flag.String("addr", ":8080", "listen address")
+	addr      = flag.String("addr", "", "listen address (default: :8080)")
 	advertise = flag.String("advertise", "", "address clients should dial to reach this server")
 	name      = flag.String("name", "", "server name (default: TuChat)")
 	owner     = flag.String("owner", "", "server owner username")
@@ -27,7 +27,25 @@ var (
 func main() {
 	flag.Parse()
 
-	listener, err := net.Listen("tcp", *addr)
+	listenerAddr := *addr
+	if listenerAddr == "" {
+		listenerAddr = os.Getenv("TUCHAT_ADDR")
+	}
+	if listenerAddr == "" {
+		listenerAddr = ":8080"
+	}
+
+	serverName := *name
+	if serverName == "" {
+		serverName = os.Getenv("TUCHAT_NAME")
+	}
+
+	serverOwner := *owner
+	if serverOwner == "" {
+		serverOwner = os.Getenv("TUCHAT_OWNER")
+	}
+
+	listener, err := net.Listen("tcp", listenerAddr)
 	if err != nil {
 		log.Println(err)
 		return
@@ -46,8 +64,12 @@ func main() {
 
 	advertised := *advertise
 	if advertised == "" {
-		advertised = *addr
+		advertised = os.Getenv("TUCHAT_ADVERTISE")
 	}
+	if advertised == "" {
+		advertised = listenerAddr
+	}
+
 	server.SetAdvertiseAddr(advertised)
 
 	server.InitializeCommands()
@@ -56,14 +78,14 @@ func main() {
 		log.Println("No config found. Creating defaults...")
 		createDefaultState(server)
 
-		if *name != "" {
-			server.SetName(*name)
+		if serverName != "" {
+			server.SetName(serverName)
 		} else {
 			server.configureName()
 		}
 
-		if *owner != "" {
-			server.SetOwner(*owner)
+		if serverOwner != "" {
+			server.SetOwner(serverOwner)
 		} else {
 			server.configureOwner()
 		}
@@ -75,7 +97,11 @@ func main() {
 		log.Println("Config found. Server name: " + server.Name())
 
 		if server.Owner() == "" {
-			server.configureOwner()
+			if serverOwner != "" {
+				server.SetOwner(serverOwner)
+			} else {
+				server.configureOwner()
+			}
 			if err := server.SaveConfig(); err != nil {
 				log.Println(err)
 			}
