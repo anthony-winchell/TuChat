@@ -10,11 +10,16 @@ func (m Model) handleConnected(msg connectedMsg) (tea.Model, tea.Cmd) {
 	m.connection.dec = msg.decoder
 	m.connection.enc = msg.encoder
 	m.connection.state = connectionConnected
+	m.screen = screenAuth
 
 	return m, listenCmd(m.connection.dec)
 }
 
 func (m Model) handleConnectionError(msg connErrMsg) (tea.Model, tea.Cmd) {
+	if m.screen == screenConnect {
+		m.connect.error = msg.err.Error()
+		return m, m.connect.input.Focus()
+	}
 	m.connection.state = connectionDisconnected
 	m.err = msg.err
 	return m, nil

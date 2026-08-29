@@ -12,6 +12,10 @@ func (m Model) View() string {
 		return m.renderDisconnected()
 	}
 
+	if m.screen == screenConnect {
+		return m.renderConnect()
+	}
+
 	if m.screen == screenAuth {
 		return m.renderAuth()
 	}

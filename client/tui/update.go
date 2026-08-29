@@ -37,6 +37,9 @@ func (m Model) forwardToActiveWidget(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
 	switch {
+	case m.screen == screenConnect:
+		m.connect.input, cmd = m.connect.input.Update(msg)
+
 	case m.screen == screenAuth:
 		if m.auth.stage == stageMenu {
 			m.auth.menu, cmd = m.auth.menu.Update(msg)
@@ -61,6 +64,10 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	if m.connection.state == connectionDisconnected {
 		return m.handleDisconnectedKey(msg)
+	}
+
+	if m.screen == screenConnect {
+		return m.handleConnectKey(msg)
 	}
 
 	if m.screen == screenAuth {

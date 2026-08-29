@@ -16,6 +16,7 @@ import (
 )
 
 type Model struct {
+	connect    connectState
 	connection connection
 	auth       authState
 	chat       chatState
@@ -113,20 +114,37 @@ const (
 	connectionDisconnected
 )
 
+type connectState struct {
+	input textinput.Model
+	error string
+}
+
 const maxInputRows = 5
 
 type screen int
 
 const (
-	screenAuth screen = iota
+	screenConnect screen = iota
+	screenAuth
 	screenChat
 )
 
 func (m Model) Init() tea.Cmd {
+	if m.connection.addr == "" {
+		return m.connect.input.Focus()
+	}
 	return connectCmd(m.connection.addr)
 }
 
 func New(addr string) Model {
+	connectInput := newConnectInput()
+
+	screen := screenAuth
+	if addr == "" {
+		connectInput.SetValue("localhost:8080")
+		screen = screenConnect
+	}
+
 	authInput := newAuthInput()
 	authMenu := newAuthMenu()
 	chatViewport := newChatViewport()
@@ -134,7 +152,11 @@ func New(addr string) Model {
 	passwordInput := newPasswordInput()
 
 	return Model{
-		screen: screenAuth,
+		screen: screen,
+
+		connect: connectState{
+			input: connectInput,
+		},
 
 		connection: connection{
 			addr:  addr,
@@ -153,6 +175,15 @@ func New(addr string) Model {
 			secret:   passwordInput,
 		},
 	}
+}
+
+func newConnectInput() textinput.Model {
+	ti := textinput.New()
+	ti.Placeholder = "host:port"
+	ti.Prompt = "🔗 "
+	ti.Focus()
+
+	return ti
 }
 
 func newAuthInput() textinput.Model {

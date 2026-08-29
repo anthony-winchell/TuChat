@@ -9,7 +9,7 @@ import (
 	"tuchat/client/tui"
 )
 
-var addr = flag.String("addr", "", "server address (default: $TUCHAT_ADDR or localhost:8080)")
+var addr = flag.String("addr", "", "server address (default: $TUCHAT_ADDR or interactive at startup)")
 
 func main() {
 	flag.Parse()
@@ -17,9 +17,6 @@ func main() {
 	serverAddr := *addr
 	if serverAddr == "" {
 		serverAddr = os.Getenv("TUCHAT_ADDR")
-	}
-	if serverAddr == "" {
-		serverAddr = "localhost:8080"
 	}
 
 	p := tea.NewProgram(
