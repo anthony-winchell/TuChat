@@ -18,12 +18,6 @@ go run ./client
 go run ./server               # MUST be run from server/ dir (see below)
 ```
 
-## Gotchas
-
-- **Server state paths are CWD-relative**: it loads/saves `config.json` and writes chat logs to `logs/<room>.log`. Running from the repo root scatters state files at the root. Run it from `server/`.
-- **State persists only on graceful shutdown**: SIGINT/SIGTERM both trigger `SaveConfig` + clean shutdown (`server/main.go`). A hard kill (`kill -9`, crash) loses config changes since the last successful save. `config.json` and `/logs` are gitignored.
-- **Ports are hardcoded**: server listens on `:8080` (`server/main.go`), client dials `localhost:8080` (`client/tui/connection.go:10` const `serverAddr`). Change both together.
-- `AGENTS.md` itself is gitignored — treat it as local notes.
 
 ## Architecture
 
