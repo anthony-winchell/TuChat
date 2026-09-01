@@ -73,6 +73,9 @@ type Server struct {
 	startTime time.Time
 
 	wg sync.WaitGroup
+
+	authRateLimit    *RateLimitMap
+	messageRateLimit *RateLimitMap
 }
 
 type Config struct {

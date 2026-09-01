@@ -65,6 +65,15 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 	var client *Client
 	client = newClient(conn)
 
+	ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
+	if !s.authRateLimit.Allow(ip) {
+		client.Send(protocol.Message{
+			Type: "error",
+			Message: "Rate limit exceeded. Wait a few seconds and try again.",
+		})
+		return nil, errors.New("rate limit exceeded for " + ip)
+	}
+
 	client.conn.SetReadDeadline(time.Now().Add(authTimeout))
 
 	if s.HasPassword() {
@@ -236,6 +245,15 @@ func (s *Server) handleMessages(client *Client) {
 
 		switch msg.Type {
 		case "chat":
+			if !s.messageRateLimit.Allow(client.User().Username()) {
+				if err := client.Send(protocol.Message{
+					Type: "error",
+					Message: "You are sending messages too fast.",
+				}); err != nil {
+					log.Println(err)
+				}
+				continue
+			}
 			s.broadcastMessage(msg.Message, client)
 		case "command":
 			if s.executeCommand(client, msg.Message) {
