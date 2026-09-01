@@ -596,8 +596,8 @@ func ValidateRoomName(name string) error {
 		return errors.New("room name cannot be empty")
 	}
 
-	if len(name) < 2 || len(name) > 50 {
-		return errors.New("room name must be between 2 and 50 characters long")
+	if len(name) < 2 || len(name) > 32 {
+		return errors.New("room name must be between 2 and 32 characters long")
 	}
 
 	if strings.Contains(name, " ") {

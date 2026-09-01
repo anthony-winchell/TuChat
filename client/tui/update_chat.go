@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"strconv"
 	"strings"
 	"tuchat/protocol"
 
@@ -119,6 +120,17 @@ func (m Model) handleChatInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 
 	if strings.HasPrefix(value, "/") {
 		msgType = "command"
+	}
+
+	if err := protocol.ValidateMessage(&protocol.Message{
+		Type:    msgType,
+		Message: value,
+	}); err != nil {
+		m.addChatEntry(chatEntry{
+			kind: "error",
+			text: "Message too long (max " + strconv.Itoa(protocol.MaxMessageLen) + " characters)",
+		})
+		return m, nil
 	}
 
 	return m, sendCmd(

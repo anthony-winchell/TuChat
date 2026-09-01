@@ -243,6 +243,16 @@ func (s *Server) handleMessages(client *Client) {
 			return
 		}
 
+		if err := protocol.ValidateMessage(&msg); err != nil {
+			if err := client.Send(protocol.Message{
+				Type:    "error",
+				Message: err.Error(),
+			}); err != nil {
+				log.Println(err)
+			}
+			continue
+		}
+
 		switch msg.Type {
 		case "chat":
 			if !s.messageRateLimit.Allow(client.User().Username()) {
