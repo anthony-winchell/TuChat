@@ -17,11 +17,12 @@ const writeTimeout = 10 * time.Second
 
 func newClient(conn net.Conn) *Client {
 	c := &Client{
-		conn:    conn,
-		input:   bufio.NewScanner(conn),
-		encoder: json.NewEncoder(conn),
-		outbox:  make(chan protocol.Message, outboxSize),
-		done:    make(chan struct{}),
+		conn:     conn,
+		input:    bufio.NewScanner(conn),
+		encoder:  json.NewEncoder(conn),
+		outbox:   make(chan protocol.Message, outboxSize),
+		done:     make(chan struct{}),
+		lastPong: time.Now(),
 	}
 
 	c.input.Buffer(make([]byte, 64*1024), maxMessageSize)
@@ -44,6 +45,18 @@ func (c *Client) startWriter(wg *sync.WaitGroup) {
 			}
 		}
 	})
+}
+
+func (c *Client) markPong() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.lastPong = time.Now()
+}
+
+func (c *Client) lastPongTime() time.Time {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.lastPong
 }
 
 func (c *Client) stop() {

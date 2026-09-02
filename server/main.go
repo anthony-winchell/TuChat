@@ -60,8 +60,9 @@ func main() {
 		chatLogs:  make(map[string]*ChatLog),
 		rooms:     make(map[string]*Room),
 		startTime: time.Now(),
+		done:      make(chan struct{}),
 
-		authRateLimit: NewRateLimitMap(5, 5.0/30.0),
+		authRateLimit:    NewRateLimitMap(5, 5.0/30.0),
 		messageRateLimit: NewRateLimitMap(10, 5.0),
 	}
 

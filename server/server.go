@@ -15,8 +15,14 @@ const maxAuthAttempts = 3
 const authTimeout = 2 * time.Minute
 const maxMessageSize = 1 << 20
 
+const heartbeatInterval = 60 * time.Second
+const heartbeatTimeout = 2 * time.Minute
+
 func (s *Server) Start() {
 	log.Println("Server started")
+
+	s.wg.Go(s.heartbeatLoop)
+
 	for {
 		conn, err := s.listener.Accept()
 		if err != nil {
@@ -41,6 +47,8 @@ func (s *Server) Start() {
 }
 
 func (s *Server) Shutdown() {
+	close(s.done)
+
 	if err := s.listener.Close(); err != nil {
 		log.Println(err)
 	}
@@ -53,6 +61,27 @@ func (s *Server) Shutdown() {
 	s.closeClients()
 
 	s.wg.Wait()
+}
+
+func (s *Server) heartbeatLoop() {
+	ticker := time.NewTicker(heartbeatInterval)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-s.done:
+			return
+		case <-ticker.C:
+			now := time.Now()
+			for _, c := range s.clientsSnapshot() {
+				if now.Sub(c.lastPongTime()) > heartbeatTimeout {
+					c.stop()
+					continue
+				}
+				c.Send(protocol.Message{Type: "ping"})
+			}
+		}
+	}
 }
 
 func (s *Server) addConnection(conn net.Conn) {
@@ -68,7 +97,7 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 	ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 	if !s.authRateLimit.Allow(ip) {
 		client.Send(protocol.Message{
-			Type: "error",
+			Type:    "error",
 			Message: "Rate limit exceeded. Wait a few seconds and try again.",
 		})
 		return nil, errors.New("rate limit exceeded for " + ip)
@@ -257,7 +286,7 @@ func (s *Server) handleMessages(client *Client) {
 		case "chat":
 			if !s.messageRateLimit.Allow(client.User().Username()) {
 				if err := client.Send(protocol.Message{
-					Type: "error",
+					Type:    "error",
 					Message: "You are sending messages too fast.",
 				}); err != nil {
 					log.Println(err)
@@ -269,6 +298,8 @@ func (s *Server) handleMessages(client *Client) {
 			if s.executeCommand(client, msg.Message) {
 				return
 			}
+		case "pong":
+			client.markPong()
 		default:
 			if err := client.Send(protocol.Message{
 				Type:    "error",

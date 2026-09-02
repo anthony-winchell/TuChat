@@ -3,6 +3,7 @@ package tui
 import (
 	"encoding/json"
 	"net"
+	"time"
 
 	"tuchat/protocol"
 
@@ -23,8 +24,10 @@ func connectCmd(addr string) tea.Cmd {
 	}
 }
 
-func listenCmd(decoder *json.Decoder) tea.Cmd {
+func listenCmd(conn net.Conn, decoder *json.Decoder) tea.Cmd {
 	return func() tea.Msg {
+		conn.SetReadDeadline(time.Now().Add(150 * time.Second))
+
 		var msg protocol.Message
 		if err := decoder.Decode(&msg); err != nil {
 			return connErrMsg{err: err}
@@ -40,4 +43,22 @@ func sendCmd(encoder *json.Encoder, msg protocol.Message) tea.Cmd {
 		}
 		return nil
 	}
+}
+
+func reconnectDelay(attempt int) time.Duration {
+	shift := min(attempt-1, 5)
+	if shift < 0 {
+		shift = 0
+	}
+	delay := time.Duration(1<<shift) * time.Second
+	if delay > 30*time.Second {
+		delay = 30 * time.Second
+	}
+	return delay
+}
+
+func reconnectCmd(attempt int) tea.Cmd {
+	return tea.Tick(reconnectDelay(attempt), func(time.Time) tea.Msg {
+		return reconnectMsg{attempt: attempt}
+	})
 }

@@ -23,6 +23,8 @@ type Client struct {
 	stopOnce sync.Once
 
 	room *Room
+
+	lastPong time.Time
 }
 
 type User struct {
@@ -73,6 +75,8 @@ type Server struct {
 	startTime time.Time
 
 	wg sync.WaitGroup
+
+	done chan struct{}
 
 	authRateLimit    *RateLimitMap
 	messageRateLimit *RateLimitMap

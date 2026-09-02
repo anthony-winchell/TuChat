@@ -2,6 +2,8 @@ package tui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+
+	"tuchat/protocol"
 )
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -24,6 +26,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case sendErrMsg:
 		return m.handleSendError(msg)
+
+	case reconnectMsg:
+		return m.handleReconnect(msg)
 
 	case tea.KeyMsg:
 		return m.handleKey(msg)
@@ -59,11 +64,17 @@ func (m Model) forwardToActiveWidget(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if msg.String() == "ctrl+c" {
-		return m, tea.Quit
+		return m, sendQuitCmd(m)
 	}
 
-	if m.connection.state == connectionDisconnected {
+	switch m.connection.state {
+	case connectionDisconnected:
 		return m.handleDisconnectedKey(msg)
+	case connectionReconnecting:
+		if msg.String() == "q" {
+			return m, tea.Quit
+		}
+		return m, nil
 	}
 
 	if m.screen == screenConnect {
@@ -75,6 +86,19 @@ func (m Model) handleKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	}
 
 	return m.handleChatKey(msg)
+}
+
+func sendQuitCmd(m Model) tea.Cmd {
+	if m.connection.enc != nil && m.connection.state == connectionConnected {
+		return tea.Batch(
+			sendCmd(m.connection.enc, protocol.Message{
+				Type:    "command",
+				Message: "/quit",
+			}),
+			tea.Quit,
+		)
+	}
+	return tea.Quit
 }
 
 func (m Model) handleDisconnectedKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {

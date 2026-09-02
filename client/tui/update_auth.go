@@ -103,6 +103,12 @@ func (m Model) submitAuthInput() (tea.Model, tea.Cmd) {
 		m.auth.input.EchoMode = textinput.EchoNormal
 		m.auth.input.Placeholder = "username"
 
+		m.connection.creds = reconnectCreds{
+			choice:   m.auth.choice,
+			username: m.auth.pendingUser,
+			password: value,
+		}
+
 		return m, sendCmd(
 			m.connection.enc,
 			protocol.Message{
@@ -117,6 +123,8 @@ func (m Model) submitAuthInput() (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleAuthSuccess(msg serverMsg) (tea.Model, tea.Cmd) {
+	restoring := m.chat.roomName != ""
+
 	m.screen = screenChat
 	m.chat.selfNickname = msg.Nickname
 
@@ -126,8 +134,8 @@ func (m Model) handleAuthSuccess(msg serverMsg) (tea.Model, tea.Cmd) {
 	m.auth.input.Reset()
 	m.auth.input.Blur()
 
-	return m, tea.Batch(
-		listenCmd(m.connection.dec),
+	cmds := []tea.Cmd{
+		listenCmd(m.connection.conn, m.connection.dec),
 		sendCmd(m.connection.enc, protocol.Message{
 			Type:    "command",
 			Message: "/users",
@@ -137,7 +145,22 @@ func (m Model) handleAuthSuccess(msg serverMsg) (tea.Model, tea.Cmd) {
 			Message: "/room",
 		}),
 		m.chat.input.Focus(),
-	)
+	}
+
+	if restoring {
+		cmds = append(cmds,
+			sendCmd(m.connection.enc, protocol.Message{
+				Type:    "command",
+				Message: "/nick " + m.chat.selfNickname,
+			}),
+			sendCmd(m.connection.enc, protocol.Message{
+				Type:    "command",
+				Message: "/join " + m.chat.roomName,
+			}),
+		)
+	}
+
+	return m, tea.Batch(cmds...)
 }
 
 func (m Model) handleAuthError(msg serverMsg) (tea.Model, tea.Cmd) {
@@ -147,7 +170,7 @@ func (m Model) handleAuthError(msg serverMsg) (tea.Model, tea.Cmd) {
 		m.auth.input.Reset()
 		m.auth.input.EchoMode = textinput.EchoPassword
 		m.auth.input.Placeholder = "server password"
-		return m, listenCmd(m.connection.dec)
+		return m, listenCmd(m.connection.conn, m.connection.dec)
 	}
 
 	if m.auth.stage == stageAuthenticating &&
@@ -157,7 +180,7 @@ func (m Model) handleAuthError(msg serverMsg) (tea.Model, tea.Cmd) {
 		m.auth.input.EchoMode = textinput.EchoPassword
 		m.auth.input.Placeholder = "password"
 
-		return m, listenCmd(m.connection.dec)
+		return m, listenCmd(m.connection.conn, m.connection.dec)
 	}
 
 	m.auth.stage = stageMenu
@@ -166,5 +189,5 @@ func (m Model) handleAuthError(msg serverMsg) (tea.Model, tea.Cmd) {
 	m.auth.input.Reset()
 	m.auth.input.Blur()
 
-	return m, listenCmd(m.connection.dec)
+	return m, listenCmd(m.connection.conn, m.connection.dec)
 }

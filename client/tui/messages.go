@@ -21,3 +21,7 @@ type serverMsg protocol.Message
 type sendErrMsg struct {
 	err error
 }
+
+type reconnectMsg struct {
+	attempt int
+}

@@ -2,6 +2,8 @@ package tui
 
 import (
 	tea "github.com/charmbracelet/bubbletea"
+
+	"tuchat/protocol"
 )
 
 func (m Model) handleServerMessage(msg serverMsg) (tea.Model, tea.Cmd) {
@@ -20,7 +22,7 @@ func (m Model) handleServerMessage(msg serverMsg) (tea.Model, tea.Cmd) {
 		return m.handleNickSuccess(msg)
 
 	case "room_joined":
-		return m.handleJoinedRoom()
+		return m.handleJoinedRoom(msg)
 
 	case "join_password_required":
 		return m.handleJoinPasswordRequired(msg)
@@ -44,14 +46,20 @@ func (m Model) handleServerMessage(msg serverMsg) (tea.Model, tea.Cmd) {
 
 	case "error":
 		return m.handleServerError(msg)
+
+	case "ping":
+		return m, tea.Batch(
+			sendCmd(m.connection.enc, protocol.Message{Type: "pong"}),
+			listenCmd(m.connection.conn, m.connection.dec),
+		)
 	}
-	return m, listenCmd(m.connection.dec)
+	return m, listenCmd(m.connection.conn, m.connection.dec)
 }
 
 func (m Model) handleJoinPasswordRequired(msg serverMsg) (tea.Model, tea.Cmd) {
 	blinkCmd := m.beginRoomPassword(msg.Message)
 
-	return m, tea.Batch(listenCmd(m.connection.dec), blinkCmd)
+	return m, tea.Batch(listenCmd(m.connection.conn, m.connection.dec), blinkCmd)
 }
 
 func (m Model) handleServerError(msg serverMsg) (tea.Model, tea.Cmd) {
@@ -64,7 +72,7 @@ func (m Model) handleServerError(msg serverMsg) (tea.Model, tea.Cmd) {
 		text: msg.Message,
 	})
 
-	return m, listenCmd(m.connection.dec)
+	return m, listenCmd(m.connection.conn, m.connection.dec)
 
 }
 
@@ -89,16 +97,21 @@ func (m *Model) handleRoomSelection(msg serverMsg) {
 
 }
 
-func (m Model) handleJoinedRoom() (tea.Model, tea.Cmd) {
+func (m Model) handleJoinedRoom(msg serverMsg) (tea.Model, tea.Cmd) {
+	if m.connection.preserveHistory && msg.RoomName == m.chat.roomName {
+		m.connection.preserveHistory = false
+		return m, listenCmd(m.connection.conn, m.connection.dec)
+	}
+	m.connection.preserveHistory = false
 	m.chat.entries = nil
 	m.chat.newMessages = 0
 
-	return m, listenCmd(m.connection.dec)
+	return m, listenCmd(m.connection.conn, m.connection.dec)
 }
 
 func (m *Model) handleServerName(msg serverMsg) (tea.Model, tea.Cmd) {
 	m.serverName = msg.Message
 
 	m.refreshViewport()
-	return m, listenCmd(m.connection.dec)
+	return m, listenCmd(m.connection.conn, m.connection.dec)
 }

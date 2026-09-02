@@ -29,11 +29,22 @@ type Model struct {
 }
 
 type connection struct {
-	addr  string
-	conn  net.Conn
-	dec   *json.Decoder
-	enc   *json.Encoder
+	addr string
+	conn net.Conn
+	dec  *json.Decoder
+	enc  *json.Encoder
+
 	state connectionState
+
+	reconnectAttempt int
+	creds            reconnectCreds
+	preserveHistory  bool
+}
+
+type reconnectCreds struct {
+	choice   string
+	username string
+	password string
 }
 
 type authState struct {
@@ -112,6 +123,7 @@ const (
 	connectionConnecting connectionState = iota
 	connectionConnected
 	connectionDisconnected
+	connectionReconnecting
 )
 
 type connectState struct {

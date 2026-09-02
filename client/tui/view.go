@@ -1,6 +1,8 @@
 package tui
 
 import (
+	"strconv"
+
 	"github.com/charmbracelet/lipgloss"
 )
 
@@ -10,6 +12,10 @@ func (m Model) View() string {
 	}
 	if m.connection.state == connectionDisconnected {
 		return m.renderDisconnected()
+	}
+
+	if m.connection.state == connectionReconnecting {
+		return m.renderReconnecting()
 	}
 
 	if m.screen == screenConnect {
@@ -36,6 +42,18 @@ func (m Model) renderDisconnected() string {
 			"Disconnected from server\n\n" +
 				message +
 				"\n\n" +
+				"Press q to quit",
+		)
+}
+
+func (m Model) renderReconnecting() string {
+	return lipgloss.NewStyle().
+		Padding(2, 4).
+		Render(
+			"Connection lost\n\n" +
+				"Reconnecting... (attempt " +
+				strconv.Itoa(m.connection.reconnectAttempt) +
+				")\n\n" +
 				"Press q to quit",
 		)
 }
