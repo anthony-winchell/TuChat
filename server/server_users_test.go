@@ -14,6 +14,9 @@ func newTestServer() *Server {
 		conns:    make(map[net.Conn]struct{}),
 		chatLogs: make(map[string]*ChatLog),
 		commands: make(map[string]Command),
+
+		authRateLimit:    NewRateLimitMap(5, 5.0/30.0),
+		messageRateLimit: NewRateLimitMap(10, 5.0),
 	}
 }
 

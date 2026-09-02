@@ -55,6 +55,16 @@ func (m Model) handleReconnect(msg reconnectMsg) (tea.Model, tea.Cmd) {
 }
 
 func (m Model) handleServerPasswordPrompt(msg serverMsg) (tea.Model, tea.Cmd) {
+	if m.chat.roomName != "" && m.connection.creds.serverPassword != "" {
+		return m, tea.Batch(
+			listenCmd(m.connection.conn, m.connection.dec),
+			sendCmd(m.connection.enc, protocol.Message{
+				Type:     "server_password",
+				Password: m.connection.creds.serverPassword,
+			}),
+		)
+	}
+
 	m.screen = screenAuth
 	m.auth.stage = stageServerPassword
 	m.auth.error = ""

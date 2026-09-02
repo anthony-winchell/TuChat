@@ -1,10 +1,11 @@
 package tui
 
 import (
-	"github.com/charmbracelet/bubbles/textinput"
-	tea "github.com/charmbracelet/bubbletea"
 	"strings"
 	"tuchat/protocol"
+
+	"github.com/charmbracelet/bubbles/textinput"
+	tea "github.com/charmbracelet/bubbletea"
 )
 
 func (m Model) handleAuthKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
@@ -81,6 +82,8 @@ func (m Model) submitAuthInput() (tea.Model, tea.Cmd) {
 	switch m.auth.stage {
 
 	case stageServerPassword:
+		m.connection.creds.serverPassword = value
+
 		return m, sendCmd(m.connection.enc,
 			protocol.Message{
 				Type:     "server_password",
@@ -103,11 +106,9 @@ func (m Model) submitAuthInput() (tea.Model, tea.Cmd) {
 		m.auth.input.EchoMode = textinput.EchoNormal
 		m.auth.input.Placeholder = "username"
 
-		m.connection.creds = reconnectCreds{
-			choice:   m.auth.choice,
-			username: m.auth.pendingUser,
-			password: value,
-		}
+		m.connection.creds.choice = m.auth.choice
+		m.connection.creds.username = m.auth.pendingUser
+		m.connection.creds.password = value
 
 		return m, sendCmd(
 			m.connection.enc,
@@ -147,12 +148,8 @@ func (m Model) handleAuthSuccess(msg serverMsg) (tea.Model, tea.Cmd) {
 		m.chat.input.Focus(),
 	}
 
-	if restoring {
+	if restoring && m.chat.roomName != "general" {
 		cmds = append(cmds,
-			sendCmd(m.connection.enc, protocol.Message{
-				Type:    "command",
-				Message: "/nick " + m.chat.selfNickname,
-			}),
 			sendCmd(m.connection.enc, protocol.Message{
 				Type:    "command",
 				Message: "/join " + m.chat.roomName,

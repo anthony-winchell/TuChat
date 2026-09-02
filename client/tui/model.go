@@ -42,9 +42,10 @@ type connection struct {
 }
 
 type reconnectCreds struct {
-	choice   string
-	username string
-	password string
+	choice         string
+	username       string
+	password       string
+	serverPassword string
 }
 
 type authState struct {

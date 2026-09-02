@@ -93,6 +93,7 @@ func (s *Server) addConnection(conn net.Conn) {
 func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 	var client *Client
 	client = newClient(conn)
+	client.startWriter(&s.wg)
 
 	ip, _, _ := net.SplitHostPort(conn.RemoteAddr().String())
 	if !s.authRateLimit.Allow(ip) {
@@ -100,14 +101,14 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 			Type:    "error",
 			Message: "Rate limit exceeded. Wait a few seconds and try again.",
 		})
-		return nil, errors.New("rate limit exceeded for " + ip)
+		return client, errors.New("rate limit exceeded for " + ip)
 	}
 
 	client.conn.SetReadDeadline(time.Now().Add(authTimeout))
 
 	if s.HasPassword() {
 		if err := s.requireServerPassword(client); err != nil {
-			return nil, err
+			return client, err
 		}
 	}
 
@@ -115,14 +116,14 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 		Type:    "auth_prompt",
 		Message: "Login or register",
 	}); err != nil {
-		return nil, err
+		return client, err
 	}
 
 	attempts := 0
 	for {
 		message, err := client.readMessage()
 		if err != nil {
-			return nil, err
+			return client, err
 		}
 
 		switch message.Type {
@@ -139,7 +140,7 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 						Type:    "error",
 						Message: "Too many failed attempts",
 					})
-					return nil, errors.New("too many auth attempts")
+					return client, errors.New("too many auth attempts")
 				}
 				client.Send(protocol.Message{
 					Type:    "error",
@@ -160,7 +161,7 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 						Type:    "error",
 						Message: "Too many failed attempts",
 					})
-					return nil, errors.New("too many auth attempts")
+					return client, errors.New("too many auth attempts")
 				}
 				client.Send(protocol.Message{
 					Type:    "error",
@@ -185,7 +186,7 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 				Type:     "auth_success",
 				Nickname: client.User().Nickname(),
 			}); err != nil {
-				return nil, err
+				return client, err
 			}
 			break
 		}
@@ -195,14 +196,12 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 		Type:    "server_name",
 		Message: s.Name(),
 	}); err != nil {
-		return nil, err
+		return client, err
 	}
 
 	if err := s.JoinRoom(client, "general", ""); err != nil {
-		return nil, err
+		return client, err
 	}
-
-	client.startWriter(&s.wg)
 
 	return client, nil
 }
