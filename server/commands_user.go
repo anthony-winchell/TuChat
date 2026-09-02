@@ -39,9 +39,8 @@ func (s *Server) commandNick(client *Client, args []string) bool {
 	room := client.Room()
 
 	room.Broadcast(protocol.Message{
-		Type:     "system",
-		Username: nickname,
-		Message:  oldNickname + " changed their nickname to " + nickname,
+		Type:    "system",
+		Message: oldNickname + " changed their nickname to " + nickname,
 	}, nil)
 
 	if err := client.Send(protocol.Message{

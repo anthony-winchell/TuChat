@@ -98,11 +98,12 @@ func (m *Model) handleRoomSelection(msg serverMsg) {
 }
 
 func (m Model) handleJoinedRoom(msg serverMsg) (tea.Model, tea.Cmd) {
-	if m.connection.preserveHistory && msg.RoomName == m.chat.roomName {
-		m.connection.preserveHistory = false
+	if m.connection.preserveHistory {
+		if msg.RoomName == m.chat.roomName {
+			m.connection.preserveHistory = false
+		}
 		return m, listenCmd(m.connection.conn, m.connection.dec)
 	}
-	m.connection.preserveHistory = false
 	m.chat.entries = nil
 	m.chat.newMessages = 0
 
