@@ -35,11 +35,14 @@ func (m Model) renderChat() string {
 		inputView = m.chat.secret.View()
 	}
 
-	return headerStyle.Render(header) +
-		"\n\n" +
-		body +
-		"\n\n" +
-		inputStyle.Render(inputView)
+	typingLine := m.renderTypingLine()
+
+	result := headerStyle.Render(header) + "\n\n" + body
+	if typingLine != "" {
+		result += "\n\n" + typingLine
+	}
+	result += "\n\n" + inputStyle.Render(inputView)
+	return result
 }
 
 func (m Model) renderHeader() string {

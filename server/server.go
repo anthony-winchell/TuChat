@@ -299,6 +299,9 @@ func (s *Server) handleMessages(client *Client) {
 			}
 		case "pong":
 			client.markPong()
+
+		case "typing_start", "typing_stop":
+			s.relayTyping(client, msg.Type)
 		default:
 			if err := client.Send(protocol.Message{
 				Type:    "error",
@@ -351,4 +354,16 @@ func (s *Server) requireServerPassword(client *Client) error {
 			return err
 		}
 	}
+}
+
+func (s *Server) relayTyping(sender *Client, msgType string) {
+	room := sender.Room()
+	if room == nil {
+		return
+	}
+
+	room.Broadcast(protocol.Message{
+		Type:     msgType,
+		Nickname: sender.User().Nickname(),
+	}, sender)
 }

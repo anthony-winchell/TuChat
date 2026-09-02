@@ -145,6 +145,7 @@ func (m Model) handleAuthSuccess(msg serverMsg) (tea.Model, tea.Cmd) {
 			Type:    "command",
 			Message: "/room",
 		}),
+		typingTickCmd(),
 		m.chat.input.Focus(),
 	}
 

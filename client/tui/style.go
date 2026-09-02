@@ -78,4 +78,6 @@ var (
 	announcementTitleStyle = lipgloss.NewStyle().
 				Bold(true).
 				Foreground(colorAnnouncement)
+
+	typingStyle = lipgloss.NewStyle().Foreground(colorMuted).Italic(true)
 )

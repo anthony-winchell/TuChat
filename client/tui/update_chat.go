@@ -21,6 +21,7 @@ func (m *Model) handleChatMessage(msg serverMsg) {
 			text:      msg.Message,
 			self:      msg.Nickname == m.chat.selfNickname,
 		})
+		m.removeTypingUser(msg.Nickname)
 
 	case "pm":
 		m.addChatEntry(chatEntry{
@@ -89,9 +90,14 @@ func (m Model) handleChatInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 	if msg.String() != "enter" {
 		var cmd tea.Cmd
 
+		before := m.chat.input.Value()
 		m.growForNewline(msg)
 		m.chat.input, cmd = m.chat.input.Update(msg)
 		m.syncInputHeight()
+
+		if m.chat.input.Value() != before {
+			return m, tea.Batch(cmd, m.typingCmd())
+		}
 
 		return m, cmd
 	}
@@ -133,12 +139,9 @@ func (m Model) handleChatInputKey(msg tea.KeyMsg) (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 
-	return m, sendCmd(
-		m.connection.enc,
-		protocol.Message{
-			Type:    msgType,
-			Message: value,
-		},
+	return m, tea.Batch(
+		sendCmd(m.connection.enc, protocol.Message{Type: "typing_stop"}),
+		sendCmd(m.connection.enc, protocol.Message{Type: msgType, Message: value}),
 	)
 }
 

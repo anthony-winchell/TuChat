@@ -30,6 +30,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case reconnectMsg:
 		return m.handleReconnect(msg)
 
+	case typingTickMsg:
+		m.pruneTypingUsers()
+		if m.screen == screenChat {
+			return m, typingTickCmd()
+		}
+		return m, nil
+
 	case tea.KeyMsg:
 		return m.handleKey(msg)
 

@@ -65,6 +65,9 @@ type chatState struct {
 	input  textarea.Model
 	secret textinput.Model
 
+	typingUsers    map[string]time.Time
+	lastTypingSent time.Time
+
 	users []protocol.UserSummary
 	rooms []protocol.RoomSummary
 
@@ -183,9 +186,10 @@ func New(addr string) Model {
 		},
 
 		chat: chatState{
-			viewport: chatViewport,
-			input:    chatInput,
-			secret:   passwordInput,
+			viewport:    chatViewport,
+			input:       chatInput,
+			secret:      passwordInput,
+			typingUsers: make(map[string]time.Time),
 		},
 	}
 }

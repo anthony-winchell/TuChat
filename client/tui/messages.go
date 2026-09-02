@@ -3,6 +3,7 @@ package tui
 import (
 	"encoding/json"
 	"net"
+	"time"
 	"tuchat/protocol"
 )
 
@@ -17,6 +18,8 @@ type connErrMsg struct {
 }
 
 type serverMsg protocol.Message
+
+type typingTickMsg time.Time
 
 type sendErrMsg struct {
 	err error

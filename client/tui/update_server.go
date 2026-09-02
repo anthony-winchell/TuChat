@@ -31,6 +31,12 @@ func (m Model) handleServerMessage(msg serverMsg) (tea.Model, tea.Cmd) {
 		"welcome", "join", "leave":
 		m.handleChatMessage(msg)
 
+	case "typing_start":
+		m.addTypingUser(msg.Nickname)
+
+	case "typing_stop":
+		m.removeTypingUser(msg.Nickname)
+
 	case "users":
 		m.chat.users = msg.Users
 
