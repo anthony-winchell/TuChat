@@ -4,7 +4,16 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
+// handleServerMessage is the only place that re-arms listenCmd after a
+// server message. Handlers must not return listenCmd themselves: a missing
+// one stops the client reading, and a duplicate means two concurrent reads
+// on the same decoder.
 func (m Model) handleServerMessage(msg serverMsg) (tea.Model, tea.Cmd) {
+	next, cmd := m.dispatchServerMessage(msg)
+	return next, tea.Batch(cmd, listenCmd(m.connection.dec))
+}
+
+func (m Model) dispatchServerMessage(msg serverMsg) (tea.Model, tea.Cmd) {
 	switch msg.Type {
 
 	case "server_password_prompt":
@@ -45,13 +54,11 @@ func (m Model) handleServerMessage(msg serverMsg) (tea.Model, tea.Cmd) {
 	case "error":
 		return m.handleServerError(msg)
 	}
-	return m, listenCmd(m.connection.dec)
+	return m, nil
 }
 
 func (m Model) handleJoinPasswordRequired(msg serverMsg) (tea.Model, tea.Cmd) {
-	blinkCmd := m.beginRoomPassword(msg.Message)
-
-	return m, tea.Batch(listenCmd(m.connection.dec), blinkCmd)
+	return m, m.beginRoomPassword(msg.Message)
 }
 
 func (m Model) handleServerError(msg serverMsg) (tea.Model, tea.Cmd) {
@@ -64,8 +71,7 @@ func (m Model) handleServerError(msg serverMsg) (tea.Model, tea.Cmd) {
 		text: msg.Message,
 	})
 
-	return m, listenCmd(m.connection.dec)
-
+	return m, nil
 }
 
 func (m *Model) handleRoomSelection(msg serverMsg) {
@@ -93,12 +99,11 @@ func (m Model) handleJoinedRoom() (tea.Model, tea.Cmd) {
 	m.chat.entries = nil
 	m.chat.newMessages = 0
 
-	return m, listenCmd(m.connection.dec)
+	return m, nil
 }
 
-func (m *Model) handleServerName(msg serverMsg) (tea.Model, tea.Cmd) {
+func (m *Model) handleServerName(msg serverMsg) {
 	m.serverName = msg.Message
 
 	m.refreshViewport()
-	return m, listenCmd(m.connection.dec)
 }

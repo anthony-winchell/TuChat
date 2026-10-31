@@ -127,7 +127,6 @@ func (m Model) handleAuthSuccess(msg serverMsg) (tea.Model, tea.Cmd) {
 	m.auth.input.Blur()
 
 	return m, tea.Batch(
-		listenCmd(m.connection.dec),
 		sendCmd(m.connection.enc, protocol.Message{
 			Type:    "command",
 			Message: "/users",
@@ -147,7 +146,7 @@ func (m Model) handleAuthError(msg serverMsg) (tea.Model, tea.Cmd) {
 		m.auth.input.Reset()
 		m.auth.input.EchoMode = textinput.EchoPassword
 		m.auth.input.Placeholder = "server password"
-		return m, listenCmd(m.connection.dec)
+		return m, nil
 	}
 
 	if m.auth.stage == stageAuthenticating &&
@@ -157,7 +156,7 @@ func (m Model) handleAuthError(msg serverMsg) (tea.Model, tea.Cmd) {
 		m.auth.input.EchoMode = textinput.EchoPassword
 		m.auth.input.Placeholder = "password"
 
-		return m, listenCmd(m.connection.dec)
+		return m, nil
 	}
 
 	m.auth.stage = stageMenu
@@ -166,5 +165,5 @@ func (m Model) handleAuthError(msg serverMsg) (tea.Model, tea.Cmd) {
 	m.auth.input.Reset()
 	m.auth.input.Blur()
 
-	return m, listenCmd(m.connection.dec)
+	return m, nil
 }

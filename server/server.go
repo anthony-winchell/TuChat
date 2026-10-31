@@ -6,14 +6,18 @@ import (
 	"net"
 	"runtime/debug"
 	"time"
+
 	"tuchat/protocol"
 )
 
 const defaultWelcomeMessage = "Welcome to {server}, {nickname}!\n\nType /help for commands.\n\n" +
 	"Server Address: {address}"
-const maxAuthAttempts = 3
-const authTimeout = 2 * time.Minute
-const maxMessageSize = 1 << 20
+
+const (
+	maxAuthAttempts = 3
+	authTimeout     = 2 * time.Minute
+	maxMessageSize  = 1 << 20
+)
 
 func (s *Server) Start() {
 	log.Println("Server started")
@@ -61,15 +65,12 @@ func (s *Server) addConnection(conn net.Conn) {
 	s.conns[conn] = struct{}{}
 }
 
-func (s *Server) registerClient(conn net.Conn) (*Client, error) {
-	var client *Client
-	client = newClient(conn)
-
+func (s *Server) registerClient(client *Client) error {
 	client.conn.SetReadDeadline(time.Now().Add(authTimeout))
 
 	if s.HasPassword() {
 		if err := s.requireServerPassword(client); err != nil {
-			return nil, err
+			return err
 		}
 	}
 
@@ -77,14 +78,14 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 		Type:    "auth_prompt",
 		Message: "Login or register",
 	}); err != nil {
-		return nil, err
+		return err
 	}
 
 	attempts := 0
 	for {
 		message, err := client.readMessage()
 		if err != nil {
-			return nil, err
+			return err
 		}
 
 		switch message.Type {
@@ -93,7 +94,6 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 				message.Username,
 				message.Password,
 			)
-
 			if err != nil {
 				attempts++
 				if attempts >= maxAuthAttempts {
@@ -101,7 +101,7 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 						Type:    "error",
 						Message: "Too many failed attempts",
 					})
-					return nil, errors.New("too many auth attempts")
+					return errors.New("too many auth attempts")
 				}
 				client.Send(protocol.Message{
 					Type:    "error",
@@ -114,7 +114,6 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 
 		case "login":
 			user, err := s.AuthenticateUser(message.Username, message.Password)
-
 			if err != nil {
 				attempts++
 				if attempts >= maxAuthAttempts {
@@ -122,7 +121,7 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 						Type:    "error",
 						Message: "Too many failed attempts",
 					})
-					return nil, errors.New("too many auth attempts")
+					return errors.New("too many auth attempts")
 				}
 				client.Send(protocol.Message{
 					Type:    "error",
@@ -147,7 +146,7 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 				Type:     "auth_success",
 				Nickname: client.User().Nickname(),
 			}); err != nil {
-				return nil, err
+				return err
 			}
 			break
 		}
@@ -157,16 +156,14 @@ func (s *Server) registerClient(conn net.Conn) (*Client, error) {
 		Type:    "server_name",
 		Message: s.Name(),
 	}); err != nil {
-		return nil, err
+		return err
 	}
 
 	if err := s.JoinRoom(client, "general", ""); err != nil {
-		return nil, err
+		return err
 	}
 
-	client.startWriter(&s.wg)
-
-	return client, nil
+	return nil
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
@@ -175,15 +172,15 @@ func (s *Server) handleConnection(conn net.Conn) {
 		conn.Close()
 	}()
 
-	client, err := s.registerClient(conn)
-	if err != nil {
-		if client != nil {
-			client.stop()
-		}
+	client := newClient(conn)
+	client.startWriter(&s.wg)
+	defer client.stop()
+	defer s.removeClient(client)
+
+	if err := s.registerClient(client); err != nil {
 		log.Println(err)
 		return
 	}
-	defer client.stop()
 
 	s.sendWelcome(client)
 
@@ -206,8 +203,6 @@ func (s *Server) handleConnection(conn net.Conn) {
 			Timestamp: time.Now(),
 		}, nil)
 	}
-
-	s.removeClient(client)
 }
 
 func (s *Server) removeConnection(conn net.Conn) {

@@ -9,11 +9,14 @@ import (
 	"strings"
 	"sync"
 	"time"
+
 	"tuchat/protocol"
 )
 
-const outboxSize = 64
-const writeTimeout = 10 * time.Second
+const (
+	outboxSize   = 64
+	writeTimeout = 10 * time.Second
+)
 
 func newClient(conn net.Conn) *Client {
 	c := &Client{
@@ -136,10 +139,17 @@ func (s *Server) addClient(client *Client) error {
 }
 
 func (s *Server) removeClient(client *Client) {
+	user := client.User()
+	if user == nil {
+		return
+	}
+
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
-	delete(s.clients, client.User().Username())
+	if s.clients[user.Username()] == client {
+		delete(s.clients, user.Username())
+	}
 }
 
 func (s *Server) findClient(username string) *Client {

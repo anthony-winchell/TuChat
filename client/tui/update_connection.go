@@ -38,9 +38,8 @@ func (m Model) handleServerPasswordPrompt(msg serverMsg) (tea.Model, tea.Cmd) {
 	m.auth.input.Reset()
 	m.auth.input.EchoMode = textinput.EchoPassword
 	m.auth.input.Placeholder = "server password"
-	blinkCmd := m.auth.input.Focus()
 
-	return m, tea.Batch(listenCmd(m.connection.dec), blinkCmd)
+	return m, m.auth.input.Focus()
 }
 
 func (m Model) handleAuthPrompt(msg serverMsg) (tea.Model, tea.Cmd) {
@@ -51,5 +50,5 @@ func (m Model) handleAuthPrompt(msg serverMsg) (tea.Model, tea.Cmd) {
 		m.auth.input.Blur()
 	}
 
-	return m, listenCmd(m.connection.dec)
+	return m, nil
 }
